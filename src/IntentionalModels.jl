@@ -1,0 +1,39 @@
+abstract type AbstractIPOMDP <: Frame end
+abstract type AbstractParticleInteractiveBelief{T} <: AbstractParticleBelief{T} end
+
+type Intentional_Model <: Model
+    frame::AbstractIPOMDP
+    belief::AbstractParticleInteractiveBelief
+end
+
+function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, oa::OA, sp::S; rng::AbstractRNG=Base.GLOBAL_RNG)
+    frame = m_j.frame
+    belief = m_j.belief
+    oj_set = observations(frame)    #TODO Unnecessary
+    n = n_particles(belief)
+
+    j_ID = agentID(frame)
+    i_ID = 1
+    if j_ID == 1
+        i_ID = 2
+    end
+
+    i_ID == 1 ? jnt_act = (a,oa) : jnt_act = (oa,a)
+
+    ipf = SimpleInteractiveParticleFilter(frame, LowVarianceResampler(n), rng)
+
+    updated_model_probs = Dict{Model, Float64}()
+
+    for oj in oj_set
+        #order of actions reversed because frame is ipomdp for the other agent,
+        p_oj = obs_weight(frame, s, oa, a, sp, oj, rng) #NOTE: first sp is a dummy
+        m_jp = Intentional_Model(frame, update(ipf, belief, oa, oj))
+        if haskey(updated_model_probs, mj_p)
+            updated_model_probs[mj_p] += p_oj
+        else
+            updated_model_probs[mj_p] = p_oj
+        end
+    end
+
+    return updated_model_probs
+end

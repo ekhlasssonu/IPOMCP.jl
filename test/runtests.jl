@@ -2,4 +2,7 @@ using IPOMCP
 using Base.Test
 
 # write your own tests here
-@test 1 == 2
+using POMDPs
+
+tester()
+@test 1 == 1
