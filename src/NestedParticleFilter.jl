@@ -37,11 +37,11 @@ type SimpleInteractiveParticleFilter{S<:InteractiveState, R, RNG<:AbstractRNG} <
     rng::RNG
     _particle_memory::Vector{S}
     _weight_memory::Vector{Float64}
-    solver::AbstractIPOMCPSolver
+    solver::AbstractIPOMDPSolver
 
-    SimpleInteractiveParticleFilter{S, R, RNG}(model, resample, rng, solver::AbstractIPOMCPSolver) where {S,R,RNG} = new(model, resample, rng, state_type(model)[], Float64[], solver)
+    SimpleInteractiveParticleFilter{S, R, RNG}(model, resample, rng, solver::AbstractIPOMDPSolver) where {S,R,RNG} = new(model, resample, rng, state_type(model)[], Float64[], solver)
 end
-function SimpleInteractiveParticleFilter{R}(ipomdp::IPOMDP_2, resample::R, rng::AbstractRNG, solver::AbstractIPOMCPSolver)
+function SimpleInteractiveParticleFilter{R}(ipomdp::IPOMDP_2, resample::R, rng::AbstractRNG, solver::AbstractIPOMDPSolver)
     return SimpleInteractiveParticleFilter{InteractiveState{state_type(ipomdp)},R,typeof(rng)}(ipomdp, resample, rng, solver)
 end
 
@@ -61,7 +61,7 @@ function update{S}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticle
         is = ps[i]
         s = is.env_state
         m_j = is.model
-        local oa::oaction_type(p.problem)
+        local oa::oaction_type(up.ipomdp)
 
         if !isterminal(up.ipomdp.thisPOMDP, s)
             if typeof(m_j) <: Intentional_Model
@@ -82,8 +82,8 @@ function update{S}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticle
             all_terminal = false
             sp,oi,r = generate_sor(up.ipomdp, s, a, oa, rng)
             pr_o = obs_weight(up.ipomdp, s, a, oa, sp, oi, rng)
-            updated_model_probs = update_model(m_j, s, a, oa, ap, rng=rng)
-            modelp = rand(updated_model_probs, rng = rng)
+            updated_model_probs = update_model(m_j, s, a, oa, sp, rng, up.solver)
+            modelp = rand(updated_model_probs,rng)
 
             isp = InteractiveState(sp,modelp)
             push!(pm, isp)

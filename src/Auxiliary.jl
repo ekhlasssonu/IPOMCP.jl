@@ -1,4 +1,4 @@
-function Base.rand{A}(x::Dict{A,Float64}; rng::AbstractRNG = Base.GLOBAL_RNG)
+function Base.rand{A}(x::Dict{A,Float64}, rng::AbstractRNG = Base.GLOBAL_RNG)
     sum = 0.0
     for prob in values(x)
         sum += prob
@@ -16,18 +16,22 @@ end
 
 function quantal_response_probability{A}(val::Dict{A,Float64}, lambda::Float64=Inf)
     acts = collect(keys(val))
-    num_inf_value_acts = 0
+    abssum = 0.0
+    for v in values(val)
+        abssum += v
+    end
+    abssum = abs(abssum)
     exp_value = zeros(Float64, length(acts))
     sum = 0.0
     i = 1
     for v in values(val)
-        exp_value[i] = exp(lambda * v)
-        exp_value[i] == Inf ? num_inf_value_acts += 1 : nothing
+        exp_value[i] = exp(lambda * v/abssum)
         sum += exp_value[i]
         i += 1
     end
+    #println("sum = $sum")
     actProb = Dict{A,Float64}()
-    if sum != Inf
+    if sum != Inf && sum != -Inf
         j = 1
         for act in acts
             actProb[act] = exp_value[j]/sum
@@ -57,4 +61,3 @@ function quantal_response_probability{A}(val::Dict{A,Float64}, lambda::Float64=I
     end
     return actProb
 end
- 

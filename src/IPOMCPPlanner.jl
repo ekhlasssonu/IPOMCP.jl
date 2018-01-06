@@ -40,7 +40,7 @@ function action(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief)
     try
         tree = POMCPTree(ipomdp, pomcpsolver.tree_queries)
 
-		a = search(p, b, tree)	#quantal response model for action probability
+        a = search(p, b, tree)	#quantal response model for action probability
 
 		p._tree = Nullable(tree)
 	catch ex
@@ -61,7 +61,7 @@ function search(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief, t::Basic
         end
         is = rand(p.rng, b)										# returns an interactive state implemented
         if !isterminal(p.problem.thisPOMDP, is.env_state)
-            simulate(p, is, POMCPObsNode(t, 1), pomcpsolver.max_depth)
+            simulate(p, is, BasicPOMCP.POMCPObsNode(t, 1), pomcpsolver.max_depth)
             all_terminal = false
         end
     end
@@ -72,12 +72,17 @@ function search(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief, t::Basic
     lambda = p.solver.solvers[p.problem.level+1][3]
 
     actValue = Dict{action_type(p.problem),Float64}()
+    #println("Accessing values")
+    h = 1
     for node in t.children[h]
+        print(t.a_labels[node],":",t.v[node]," ")
         actValue[t.a_labels[node]] = t.v[node]
     end
+    println(actValue)
+    #println("lambda=$lambda")
     actProb = quantal_response_probability(actValue, lambda)
-
-    return rand(actProb, rng = p.rng)
+    #println("Action Probs ", actProb)
+    return rand(actProb, p.rng)
 end
 
 function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPOMCP.POMCPObsNode, steps::Int)
@@ -92,6 +97,9 @@ function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPO
         return 0.0
     end
 
+    lvl = level(p.problem)
+    pomcpsolver = p.solver.solvers[lvl+1][1]
+
     local aj::oaction_type(p.problem)
     if typeof(mj) <: Intentional_Model
         b_j = mj.belief
@@ -100,8 +108,8 @@ function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPO
         j_planner = solve(p.solver, mj_frame)
         aj = action(j_planner, b_j)
     else
-        frame_j = m_j.frame
-        hist_j = m_j.history
+        frame_j = mj.frame
+        hist_j = mj.history
         j_solver = solver(frame_j, rng=p.rng) #NOTE: Other Subintentional models should implement the same function calls
         j_planner = solve(j_solver, frame_j)
         aj = action(j_planner, hist_j)
@@ -120,7 +128,7 @@ function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPO
         elseif n == 0 && t.v[node] == -Inf							#Don't know why, only if it was set to -Inf I think
             criterion_value = Inf
         else
-            criterion_value = t.v[node] + p.solver.c*sqrt(ltn/n)
+            criterion_value = t.v[node] + pomcpsolver.c*sqrt(ltn/n)
         end
         if criterion_value > best_criterion_val
             best_criterion_val = criterion_value
@@ -135,21 +143,21 @@ function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPO
 
     agID == 1 ? jnt_act = (a,aj) : jnt_act = (aj, a)
 
-    sp, o, r = generate_sor(p.problem, s, jnt_act, p.rng)
-    mjp = rand(update_model(mj, s, a, aj, sp, p.rng), rng=p.rng)
+    sp, o, r = generate_sor(p.problem, s, a, aj, p.rng)
+    mjp = rand(update_model(mj, s, a, aj, sp, p.rng,p.solver), p.rng)
 
     hao = get(t.o_lookup, (ha, o), 0)
     if hao == 0
         hao = insert_obs_node!(t, p.problem, ha, o)
-        v = estimate_value(p.solved_estimator,
-                           p.problem,
+        v = BasicPOMCP.estimate_value(p.solved_estimator,
+                           p.problem.thisPOMDP,
                            sp,
-                           POMCPObsNode(t, hao),
+                           BasicPOMCP.POMCPObsNode(t, hao),
                            steps-1)
         R = r + discount(p.problem)*v
     else
         isp = InteractiveState(sp, mjp)
-        R = r + discount(p.problem)*simulate(p, isp, POMCPObsNode(t, hao), steps-1) * prob
+        R = r + discount(p.problem)*simulate(p, isp, BasicPOMCP.POMCPObsNode(t, hao), steps-1)
     end
 
     t.total_n[h] += 1

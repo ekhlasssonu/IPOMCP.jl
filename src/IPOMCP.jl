@@ -12,10 +12,13 @@ using Parameters # for @with_kw
 using AutoHashEquals
 using StaticArrays
 using JLD
+using CPUTime
+using Colors
 
 
 export tester
 
+include("AbstractTypeDeclarations.jl")
 include("Auxiliary.jl")
 include("I-POMDPTrial.jl")
 include("SubintentionalModels.jl")

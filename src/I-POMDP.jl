@@ -38,6 +38,7 @@ function IPOMDP_2(agID::Int64, level::Int64, agentPOMDP::POMDP,
     return IPOMDP_2{S,A1,A2,O}(level, agentPOMDP, oaSF, oaFrames1)
 end
 
+discount(ip::IPOMDP_2) = discount(ip.thisPOMDP)
 agentID(ip::IPOMDP_2) = ip.thisPOMDP.agID
 level(ip::IPOMDP_2) = ip.level
 
@@ -78,12 +79,15 @@ function oactions(ipomdp::IPOMDP_2)
     return acts
 end
 
+n_actions(ipomdp::IPOMDP_2) = length(actions(ipomdp))
+n_oactions(ipomdp::IPOMDP_2) = length(oactions(ipomdp))
+
 function joint_actions(ipomdp::IPOMDP_2)
     return actions(ipomdp.thisPOMDP)
 end
 
 function observations(ipomdp::IPOMDP_2)
-    return observations(ipomdp_2.thisPOMDP)
+    return observations(ipomdp.thisPOMDP)
 end
 
 function generate_s{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, rng::AbstractRNG=Base.GLOBAL_RNG)
@@ -170,7 +174,7 @@ function generate_or{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, sp::S, rng:
     return generate_or(ipomdp.thisPOMDP, s, (a1,a2), sp, rng)
 end
 
-function obs_weight{S,A1,A2}(ipomdp::IPOMDP_2, sp::S, a::A1, oa::A2, rng::AbstractRNG=Base.GLOBAL_RNG)
+function obs_weight{S,A1,A2,O}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, sp::S, o::O, rng::AbstractRNG=Base.GLOBAL_RNG)
     if agentID(ipomdp) == 1
         a1 = a
         a2 = oa
@@ -178,5 +182,5 @@ function obs_weight{S,A1,A2}(ipomdp::IPOMDP_2, sp::S, a::A1, oa::A2, rng::Abstra
         a1 = oa
         a2 = a
     end
-    return obs_weight(ipomdp.thisPOMDP, (a1,a2), sp, rng)
+    return obs_weight(ipomdp.thisPOMDP, s, (a1,a2), sp, o, rng)
 end

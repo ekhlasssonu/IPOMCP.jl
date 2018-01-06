@@ -1,6 +1,3 @@
-abstract type Frame end
-abstract type Model end
-
 abstract type Subintentional_Frame <: Frame end
 abstract type Subintentional_Model <: Model end
 
@@ -56,6 +53,6 @@ end
 
 update_history(sm::Static_Distribution_Model; a::Any=1, o::Any = 1) = sm
 
-function update_model(sm::Static_Distribution_Model, s::Any, a::Any, oa::Any, sp::Any; rng::AbstractRNG=Base.GLOBAL_RNG)
+function update_model(sm::Static_Distribution_Model, s::Any, a::Any, oa::Any, sp::Any, rng::AbstractRNG, x...)
     return Dict{Model,Float64}(sm=>1.0)  #with prob
 end

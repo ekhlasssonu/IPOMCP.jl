@@ -1,4 +1,3 @@
-abstract type AbstractInteractiveState{S} end
 type InteractiveState{S} <: AbstractInteractiveState{S}
     env_state::S
     model::Model    #Other agent's model not to be confused with model of the universe

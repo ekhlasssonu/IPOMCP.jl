@@ -3,7 +3,7 @@ function POMCPTree(ipomdp::IPOMDP_2, sz::Int=1000)
     A = action_type(ipomdp)
     O = obs_type(ipomdp)
     sz = min(100_000, sz)
-    return POMCPTree{A,O}(sizehint!(Int[0], sz),
+    return BasicPOMCP.POMCPTree{A,O}(sizehint!(Int[0], sz),
                           sizehint!(Vector{Int}[collect(1:length(acts))], sz),
                           sizehint!(Array{O}(1), sz),
 
@@ -22,7 +22,7 @@ function insert_obs_node!(t::BasicPOMCP.POMCPTree, ipomdp::IPOMDP_2, ha::Int, o)
     hao = length(t.total_n)											# index for the new node being inserted
     t.o_lookup[(ha, o)] = hao										# look up for node corresponding o from ha
     for a in actions(ipomdp)
-        n = insert_action_node!(t, hao, a)
+        n = BasicPOMCP.insert_action_node!(t, hao, a)
         push!(t.children[hao], n)
     end
     return hao

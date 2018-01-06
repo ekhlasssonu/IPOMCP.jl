@@ -61,7 +61,7 @@ end
 TigerDistribution() = TigerDistribution(0.5, [1,2])
 
 function initial_state_distribution(p::Union{Level_l_tigerPOMDP, Level_0_tigerPOMDP})
-    return TigerDistribution
+    return TigerDistribution()
 end
 function rand(rng, dist::TigerDistribution)
     s = 0
@@ -491,7 +491,7 @@ function initial_ipomdp_frame_distribution(pomdp::Union{Level_l_tigerPOMDP, Leve
     return Tiger_Frame_Distribution(ipomdp, st_prob)
 end
 
-#TODO: Nested belief returned
+#Nested belief returned
 function rand(rng, dist::Tiger_Frame_Distribution, n_particles::Vector{Int64})
     ipomdp = dist.ipomdp
     lvl = level(ipomdp)
