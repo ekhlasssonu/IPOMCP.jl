@@ -184,3 +184,7 @@ function obs_weight{S,A1,A2,O}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, sp::S, o::
     end
     return obs_weight(ipomdp.thisPOMDP, s, (a1,a2), sp, o, rng)
 end
+
+function initial_state_distribution(ipomdp::IPOMDP_2)
+    return initial_ipomdp_frame_distribution(ipomdp.thisPOMDP, ipomdp, initial_state_distribution(ipomdp.thisPOMDP))
+end

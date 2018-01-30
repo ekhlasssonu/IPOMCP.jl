@@ -1,7 +1,7 @@
 mutable struct IPOMCPPlanner{P<:IPOMDP_2, SE, RNG} <: Policy
     solver::IPOMCPSolver
     problem::P
-    solved_estimator::SE	#For rollout
+    solved_estimator::SE    #For rollout. ASK about it
     rng::RNG
     _best_node_mem::Vector{Int}
     _tree::Nullable
@@ -31,6 +31,24 @@ function updater(p::IPOMCPPlanner)
     return SimpleInteractiveParticleFilter(ipomdp, LowVarianceResampler(n_particles), p.rng, p.solver)	# This may need to change. Because IPF needed
 end
 
+function actionProb(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief)
+    ipomdp = p.problem
+    pomcpsolver = p.solver.solvers[ipomdp.level+1][1]
+    local actProb::Dict{action_type(p.problem),Float64}
+    try
+        tree = POMCPTree(ipomdp, pomcpsolver.tree_queries)
+
+        actProb = search(p,b,tree)
+        p._tree = Nullable(tree)
+    catch ex
+        # Note: this might not be type stable, but it shouldn't matter too much here
+        a = convert(action_type(p.problem), default_action(pomcpsolver.default_action, p.problem, b, ex))
+        actProb = Dict(a=>1.0)
+    end
+
+    return actProb
+end
+
 function action(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief)
     ipomdp = p.problem
     pomcpsolver = p.solver.solvers[ipomdp.level+1][1]
@@ -40,7 +58,9 @@ function action(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief)
     try
         tree = POMCPTree(ipomdp, pomcpsolver.tree_queries)
 
-        a = search(p, b, tree)	#quantal response model for action probability
+        actProb = search(p,b,tree)  #quantal response model for action probability
+
+        a = rand(actProb, rng)
 
 		p._tree = Nullable(tree)
 	catch ex
@@ -75,14 +95,14 @@ function search(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief, t::Basic
     #println("Accessing values")
     h = 1
     for node in t.children[h]
-        print(t.a_labels[node],":",t.v[node]," ")
+        #print(t.a_labels[node],":",t.v[node]," ")
         actValue[t.a_labels[node]] = t.v[node]
     end
-    println(actValue)
+    #println(actValue)
     #println("lambda=$lambda")
     actProb = quantal_response_probability(actValue, lambda)
     #println("Action Probs ", actProb)
-    return rand(actProb, p.rng)
+    return actProb
 end
 
 function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPOMCP.POMCPObsNode, steps::Int)
@@ -140,8 +160,6 @@ function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPO
     end
     ha = rand(p.rng, best_nodes)									#random best node index
     a = t.a_labels[ha]												#action label
-
-    agID == 1 ? jnt_act = (a,aj) : jnt_act = (aj, a)
 
     sp, o, r = generate_sor(p.problem, s, a, aj, p.rng)
     mjp = rand(update_model(mj, s, a, aj, sp, p.rng,p.solver), p.rng)

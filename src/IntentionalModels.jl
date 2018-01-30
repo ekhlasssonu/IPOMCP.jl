@@ -3,10 +3,21 @@ type Intentional_Model <: Model
     belief::AbstractParticleInteractiveBelief
 end
 
-function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, oa::OA, sp::S, rng::AbstractRNG, solver::AbstractIPOMDPSolver)
+function print(model::Intentional_Model, numTabs::Int64=0)
+    for i in 1:numTabs
+        print("\t")
+    end
+    println(model.frame)
+    for is in particles(model.belief)
+        print(is,numTabs+1)
+    end
+end
+
+function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, oa::OA, sp::S,
+                                rng::AbstractRNG, solver::AbstractIPOMDPSolver)
     frame = m_j.frame
     belief = m_j.belief
-    oj_set = observations(frame)    #TODO Unnecessary
+    oj_set = observations(frame)    #TODO Unnecessary. why not generate_o followed by obs_weight
     n = n_particles(belief)
 
     j_ID = agentID(frame)
