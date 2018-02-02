@@ -125,8 +125,12 @@ function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPO
         b_j = mj.belief
         mj_frame = mj.frame
         #mj_solver = p.solver.solvers[mj_frame.level+1][1]
-        j_planner = solve(p.solver, mj_frame)
-        aj = action(j_planner, b_j)
+        if isnull(b_j.act_prob)
+            j_planner = solve(p.solver, mj_frame)
+            b_j.act_prob = Nullable(actionProb(j_planner, b_j))
+        end
+        aj_prob = get(b_j.act_prob)
+        aj = rand(aj_prob,p.rng)
     else
         frame_j = mj.frame
         hist_j = mj.history

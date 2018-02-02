@@ -88,7 +88,6 @@ function update{IS}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticl
                 b_j = m_j.belief
                 level_j = level(frame_j)
                 if isnull(b_j.act_prob)
-                #solver_j = up.solver.solvers[level_j][1]
                     j_planner = solve(up.solver, frame_j)
                     b_j.act_prob = Nullable(actionProb(j_planner, b_j))
                 end

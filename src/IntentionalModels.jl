@@ -15,7 +15,7 @@ function print(model::Intentional_Model, numTabs::Int64=0)
     end
 end
 
-function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, oa::OA, sp::S,
+function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, aj::OA, sp::S,
                                 rng::AbstractRNG, solver::AbstractIPOMDPSolver)
     frame = m_j.frame
     belief = m_j.belief
@@ -28,7 +28,7 @@ function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, oa::OA, sp::S,
         i_ID = 2
     end
 
-    i_ID == 1 ? jnt_act = (a,oa) : jnt_act = (oa,a)
+    i_ID == 1 ? jnt_act = (a,aj) : jnt_act = (aj,a)
 
     ipf = SimpleInteractiveParticleFilter(frame, LowVarianceResampler(n), rng, solver)
 
@@ -36,11 +36,11 @@ function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, oa::OA, sp::S,
 
     for oj in oj_set
         #order of actions reversed because frame is ipomdp for the other agent,
-        p_oj = obs_weight(frame, s, oa, a, sp, oj, rng) #NOTE: first sp is a dummy
+        p_oj = obs_weight(frame, s, aj, a, sp, oj, rng) #NOTE: first sp is a dummy
         if p_oj < 1e-5
             continue
         end
-        m_jp = Intentional_Model(frame, update(ipf, belief, oa, oj))
+        m_jp = Intentional_Model(frame, update(ipf, belief, aj, oj))
         if haskey(updated_model_probs, m_jp)
             updated_model_probs[m_jp] += p_oj
         else
