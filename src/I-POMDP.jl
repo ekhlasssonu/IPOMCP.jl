@@ -37,6 +37,12 @@ function IPOMDP_2(agID::Int64, level::Int64, agentPOMDP::POMDP,
     end
     return IPOMDP_2{S,A1,A2,O}(level, agentPOMDP, oaSF, oaFrames1)
 end
+==(a::IPOMDP_2, b::IPOMDP_2) = a.level==b.level && a.thisPOMDP == b.thisPOMDP && a.oaSM == b.oaSM && a.oaFrames == b.oaFrames
+Base.hash(a::IPOMDP_2) = hash((a.level,a.thisPOMDP,a.oaSM,a.oaFrames))
+
+function sparse_print(ipomdp::IPOMDP_2)
+    print("AgID:$(agentID(ipomdp)) Lvl:$(ipomdp.level)")
+end
 
 discount(ip::IPOMDP_2) = discount(ip.thisPOMDP)
 agentID(ip::IPOMDP_2) = ip.thisPOMDP.agID

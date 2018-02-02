@@ -1,7 +1,7 @@
 module IPOMCP
 
 # package code goes here
-import Base: ==, +, *, -, <, >, copy, Random, hash, length, rand, convert, print, println
+import Base: ==, +, *, -, <, >, copy, Random, hash, length, rand, convert, print, println,haskey
 importall POMDPs, ParticleFilters, BasicPOMCP
 using POMDPToolbox,POMDPModels,QMDP
 using DataFrames
@@ -16,11 +16,10 @@ using CPUTime
 using Colors
 
 
-export tester
+export tester, test_intersection_problem
 
 include("AbstractTypeDeclarations.jl")
 include("Auxiliary.jl")
-include("I-POMDPTrial.jl")
 include("SubintentionalModels.jl")
 include("IntentionalModels.jl")
 include("I-POMDP.jl")
@@ -32,4 +31,5 @@ include("IPOMCPPlanner.jl")
 include("NestedParticleFilter.jl")
 include("TreeFunctions.jl")
 include("SimulationTools.jl")
+include("I-POMDPTrial.jl")
 end # module

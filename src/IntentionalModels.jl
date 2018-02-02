@@ -2,12 +2,14 @@ type Intentional_Model <: Model
     frame::AbstractIPOMDP
     belief::AbstractParticleInteractiveBelief
 end
-
+==(a::Intentional_Model,b::Intentional_Model) = a.frame == b.frame && a.belief == b.belief
+Base.hash(x::Intentional_Model) = hash((x.frame,x.belief))
 function print(model::Intentional_Model, numTabs::Int64=0)
     for i in 1:numTabs
         print("\t")
     end
-    println(model.frame)
+    sparse_print(model.frame)
+    println()
     for is in particles(model.belief)
         print(is,numTabs+1)
     end
@@ -35,6 +37,9 @@ function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, oa::OA, sp::S,
     for oj in oj_set
         #order of actions reversed because frame is ipomdp for the other agent,
         p_oj = obs_weight(frame, s, oa, a, sp, oj, rng) #NOTE: first sp is a dummy
+        if p_oj < 1e-5
+            continue
+        end
         m_jp = Intentional_Model(frame, update(ipf, belief, oa, oj))
         if haskey(updated_model_probs, m_jp)
             updated_model_probs[m_jp] += p_oj

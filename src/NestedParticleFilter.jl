@@ -1,7 +1,12 @@
 type InteractiveParticleCollection{T<:InteractiveState} <: AbstractParticleInteractiveBelief{T}
     particleCollection::ParticleCollection{T}
+    act_prob::Nullable{Dict{Any,Float64}} #Compute solution only once
+    #Compute belief update only once
+    next_bel::Dict{Tuple{Any,Any},InteractiveParticleCollection{T}}
 end
 
+InteractiveParticleCollection{T<:InteractiveState}(pc::ParticleCollection{T}) =
+            InteractiveParticleCollection{T}(pc,Nullable{Dict{Any,Float64}}(),Dict{Tuple{Any,Any},InteractiveParticleCollection{T}}())
 InteractiveParticleCollection{T<:InteractiveState}(p::AbstractVector{T}) =
                                 InteractiveParticleCollection(ParticleCollection{T}(p))
 
@@ -14,6 +19,9 @@ particle(b::InteractiveParticleCollection, i::Int) = particle(b.particleCollecti
 rand(rng::AbstractRNG, b::InteractiveParticleCollection) = rand(rng, b.particleCollection)
 mean(b::InteractiveParticleCollection) = mean(b.particleCollection)
 iterator(b::InteractiveParticleCollection) = iterator(b.particleCollection)
+
+==(a::InteractiveParticleCollection, b::InteractiveParticleCollection) = particles(a) == particles(b)
+Base.hash(a::InteractiveParticleCollection) = hash(particles(a))
 
 function get_probs{S}(b::AbstractParticleInteractiveBelief{S})
     if isnull(b.particleCollection._probs)
@@ -48,7 +56,10 @@ function SimpleInteractiveParticleFilter{R}(ipomdp::IPOMDP_2, resample::R, rng::
 end
 
 #Input is an interactive particle filter, set of interactive particles, and action and observation of subject agent.
-function update{S}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticleCollection{S}, a, o)
+function update{IS}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticleCollection{IS}, a, o)
+    if haskey(bel.next_bel,(a,o))
+        return bel.next_bel[(a,o)]
+    end
     ipomdp = up.ipomdp
     ipomdpsolver = up.solver
     pomdpsolver = getsolver(ipomdpsolver,level(ipomdp))
@@ -76,9 +87,12 @@ function update{S}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticle
                 frame_j = m_j.frame
                 b_j = m_j.belief
                 level_j = level(frame_j)
+                if isnull(b_j.act_prob)
                 #solver_j = up.solver.solvers[level_j][1]
-                j_planner = solve(up.solver, frame_j)
-                aj_prob = actionProb(j_planner, b_j)
+                    j_planner = solve(up.solver, frame_j)
+                    b_j.act_prob = Nullable(actionProb(j_planner, b_j))
+                end
+                aj_prob = get(b_j.act_prob)
                 #aj = action(j_planner, b_j)
             else
                 frame_j = m_j.frame
@@ -90,11 +104,20 @@ function update{S}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticle
             end
 
             for (aj,p_aj) in aj_prob
-                sp,dummy_oi,r = generate_sor(up.ipomdp, s, a, aj, rng)
+                if p_aj < 1e-5
+                    continue
+                end
+                sp,r = generate_sr(up.ipomdp, s, a, aj, rng)
                 pr_o = obs_weight(up.ipomdp, s, a, aj, sp, o, rng)
+                if pr_o < 1e-5
+                    continue
+                end
                 updated_model_probs = update_model(m_j, s, a, aj, sp, rng, up.solver)
                 #modelp = rand(updated_model_probs,rng)
                 for (modelp, oj_prob) in updated_model_probs
+                    if oj_prob < 1e-5
+                        continue
+                    end
                     isp = InteractiveState(sp,modelp)
                     push!(pm, isp)
                     push!(wm, pr_o*p_aj*oj_prob)
@@ -106,7 +129,9 @@ function update{S}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticle
         error("Particle filter update error: all states in the particle collection were terminal.")
         # TODO: create a mechanism to handle this failure
     end
-    return InteractiveParticleCollection(resample(up.resample, WeightedParticleBelief{S}(pm, wm, sum(wm), nothing), up.rng))
+    updated_bel =  InteractiveParticleCollection(resample(up.resample, WeightedParticleBelief{IS}(pm, wm, sum(wm), nothing), up.rng))
+    bel.next_bel[(a,o)] = updated_bel
+    return updated_bel
 end
 
 function Base.srand(f::SimpleInteractiveParticleFilter, seed)
@@ -122,11 +147,17 @@ function print(belief::InteractiveParticleCollection, numTabs::Int64=0)
 end
 
 function get_physical_state_probability(belief::InteractiveParticleCollection)
-    st_prob = Dict{Any,Float64}()
-    n_particle = n_particles(belief)
-    for is in particles(belief)
+    particle_set = particles(belief)
+    n_particle = length(particle_set)
+    if n_particle == 0
+        return Dict{Any,Float64}()
+    end
+    T = typeof(particle_set[1].env_state)
+    println(T)
+    st_prob = Dict{T,Float64}()
+    for is in particle_set
         s = is.env_state
-        if !haskey(st_prob, s)
+        if !(haskey(st_prob, s))
             st_prob[s] = 1.0/n_particle
         else
             st_prob[s] += 1.0/n_particle

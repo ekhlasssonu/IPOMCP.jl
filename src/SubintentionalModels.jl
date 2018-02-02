@@ -9,6 +9,8 @@ type Static_Distribution_Frame{A} <: Subintentional_Frame
     agentID::Int64
     actProb::Dict{A, Float64}
 end
+==(a::Static_Distribution_Frame, b::Static_Distribution_Frame) = a.agentID == b.agentID && a.actProb == b.actProb
+Base.hash(a::Static_Distribution_Frame) = hash((a.agentID,actProb))
 
 agentID(sf::Subintentional_Frame) = sf.agentID
 
@@ -35,6 +37,9 @@ function Static_Distribution_Model{A}(agentID::Int64, actProb::Dict{A, Float64})
     end
     return Static_Distribution_Model(Static_Distribution_Frame(agentID, actProb),0)
 end
+==(a::Static_Distribution_Model, b::Static_Distribution_Model) = a.frame == b.frame && a.history == b.history
+Base.hash(a::Static_Distribution_Model) = hash((a.frame,a.history))
+
 sample_model{A}(frame::Static_Distribution_Frame{A}, rng::AbstractRNG=Base.GLOBAL_RNG) = Static_Distribution_Model{A}(frame)
 
 type Static_Distribution_Solver <: Subintentional_Solver
