@@ -369,7 +369,7 @@ function num_nested_particles(pomdp::IntersectionPOMDP, ipomdp::IPOMDP_2)
         println("Not an intersection pomdp")
         return num_particles
     end
-    level(ipomdp) == 1 ? num_particles = [30,100] : num_particles = [10,50,300]
+    level(ipomdp) == 1 ? num_particles = [30,100] : num_particles = [30,100,500]
     return num_particles
 end
 

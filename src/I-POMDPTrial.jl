@@ -128,10 +128,10 @@ function test_intersection_problem()
         println()
         #println("Physical state belief:", get_physical_state_probability(init_belief_j),"\n\n")
         =#
-        ipomcp_solver_i = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,tree_queries=100,rng=rng),100,5.0),
-                                (POMCPSolver(max_depth=5,tree_queries=500,rng=rng),300,30.0)])
-        ipomcp_solver_j = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,tree_queries=100,rng=rng),100,5.0),
-                                (POMCPSolver(max_depth=5,tree_queries=500,rng=rng),300,30.0)])
+        ipomcp_solver_i = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,tree_queries=1000,rng=rng),num_particles_i[1],5.0),
+                                (POMCPSolver(max_depth=5,tree_queries=5000,rng=rng),num_particles_i[2],30.0)])
+        ipomcp_solver_j = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,tree_queries=1000,rng=rng),num_particles_j[1],5.0),
+                                (POMCPSolver(max_depth=5,tree_queries=5000,rng=rng),num_particles_j[2],30.0)])
 
         ipomcp_planner_i = solve(ipomcp_solver_i, ipomdp_i)
         ipomcp_planner_j = solve(ipomcp_solver_j, ipomdp_j)
