@@ -6,6 +6,9 @@ type CarPhysicalState2d
 end
 ==(a::CarPhysicalState2d, b::CarPhysicalState2d) = a.state==b.state
 Base.hash(x::CarPhysicalState2d) = hash(x.state)
+function print(s::CarPhysicalState2d)
+    print("(", state[1], ",",state[2],",",state[3],",",state[4],")")
+end
 
 type CarAction2d
     accl::Float64
@@ -13,7 +16,9 @@ type CarAction2d
 end
 ==(a::CarAction2d, b::CarAction2d) = a.accl==b.accl && a.ang_vel==b.ang_vel
 Base.hash(x::CarAction2d) = hash((x.accl,x.ang_vel))
-
+function print(a::CarAction2d)
+    print("(",a.accl,",",a.ang_vel,")")
+end
 
 type VehicleActionSpace_Intersection
     actions::Vector{CarAction2d}
@@ -56,6 +61,14 @@ function IntersectionState2d(ag_st::Tuple{CarPhysicalState2d, CarPhysicalState2d
 end
 ==(a::IntersectionState2d,b::IntersectionState2d) = a.terminal == b.terminal && a.agent_states == b.agent_states
 Base.hash(x::IntersectionState2d) = hash((x.terminal,x.agent_states))
+
+function print(s::IntersectionState2d)
+    print("[",s.terminal,", ")
+    print(s.agent_states[1])
+    print(", ")
+    print(s.agent_states[2])
+    print("]")
+end
 
 
 #NOTE: Temporary fix
@@ -369,7 +382,7 @@ function num_nested_particles(pomdp::IntersectionPOMDP, ipomdp::IPOMDP_2)
         println("Not an intersection pomdp")
         return num_particles
     end
-    level(ipomdp) == 1 ? num_particles = [30,100] : num_particles = [30,100,500]
+    level(ipomdp) == 1 ? num_particles = [100,500] : num_particles = [30,100,500]
     return num_particles
 end
 

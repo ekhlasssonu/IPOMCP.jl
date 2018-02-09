@@ -1,12 +1,13 @@
 type InteractiveParticleCollection{T<:InteractiveState} <: AbstractParticleInteractiveBelief{T}
     particleCollection::ParticleCollection{T}
     act_prob::Nullable{Dict{Any,Float64}} #Compute solution only once
+    act_value::Nullable{Dict{Any,Float64}} #Debugging purpose
     #Compute belief update only once
     next_bel::Dict{Tuple{Any,Any},InteractiveParticleCollection{T}}
 end
 
 InteractiveParticleCollection{T<:InteractiveState}(pc::ParticleCollection{T}) =
-            InteractiveParticleCollection{T}(pc,Nullable{Dict{Any,Float64}}(),Dict{Tuple{Any,Any},InteractiveParticleCollection{T}}())
+            InteractiveParticleCollection{T}(pc,Nullable{Dict{Any,Float64}}(),Nullable{Dict{Any,Float64}}(),Dict{Tuple{Any,Any},InteractiveParticleCollection{T}}())
 InteractiveParticleCollection{T<:InteractiveState}(p::AbstractVector{T}) =
                                 InteractiveParticleCollection(ParticleCollection{T}(p))
 
@@ -79,7 +80,7 @@ function update{IS}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticl
         is = ps[i]
         s = is.env_state
         m_j = is.model
-        local aj::oaction_type(up.ipomdp)
+        #local aj::oaction_type(up.ipomdp)
 
         if !isterminal(up.ipomdp.thisPOMDP, s)
             all_terminal = false
@@ -152,7 +153,7 @@ function get_physical_state_probability(belief::InteractiveParticleCollection)
         return Dict{Any,Float64}()
     end
     T = typeof(particle_set[1].env_state)
-    println(T)
+    #println(T)
     st_prob = Dict{T,Float64}()
     for is in particle_set
         s = is.env_state
@@ -163,4 +164,24 @@ function get_physical_state_probability(belief::InteractiveParticleCollection)
         end
     end
     return st_prob
+end
+
+function sparse_print(belief::InteractiveParticleCollection)
+    phy_st_bel = get_physical_state_probability(belief)
+    print("State Prob : [")
+    for (s,p) in phy_st_bel
+        print(s)
+        print("=>",round(p,2),", ")
+    end
+    print("], Action Value: [")
+    for (a,v) in get(belief.act_value)
+        print(a)
+        print("=>",round(v,2),", ")
+    end
+    print("], Action Prob: [")
+    for (a,p) in get(belief.act_prob)
+        print(a)
+        print("=>",round(p,2),", ")
+    end
+    print("]")
 end

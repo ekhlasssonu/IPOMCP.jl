@@ -19,7 +19,7 @@ function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, aj::OA, sp::S,
                                 rng::AbstractRNG, solver::AbstractIPOMDPSolver)
     frame = m_j.frame
     belief = m_j.belief
-    oj_set = observations(frame)    #TODO Unnecessary. why not generate_o followed by obs_weight
+    oj_set = observations(frame)    #TODO Try generate_o followed by obs_weight
     n = n_particles(belief)
 
     j_ID = agentID(frame)

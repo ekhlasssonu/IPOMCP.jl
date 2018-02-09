@@ -33,10 +33,10 @@ function tester()
         println()
         println("Physical state belief:", get_physical_state_probability(init_belief_j),"\n\n")=#
 
-        ipomcp_solver_i = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,tree_queries=100,rng=rng),100,5.0),
-                                (POMCPSolver(max_depth=5,tree_queries=500,rng=rng),300,30.0)])
-        ipomcp_solver_j = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,tree_queries=100,rng=rng),100,5.0),
-                                (POMCPSolver(max_depth=5,tree_queries=500,rng=rng),300,30.0)])
+        ipomcp_solver_i = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=4,tree_queries=100,rng=rng,c=5.0),num_particles_i[1],5.0),
+                                (POMCPSolver(max_depth=4,tree_queries=1000,rng=rng,c=5.0),num_particles_i[2],30.0)])
+        ipomcp_solver_j = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=4,tree_queries=100,rng=rng,c=5.0),num_particles_j[1],5.0),
+                                (POMCPSolver(max_depth=4,tree_queries=1000,rng=rng,c=5.0),num_particles_j[2],30.0)])
 
         ipomcp_planner_i = solve(ipomcp_solver_i, tiger_ipomdp_i)
         ipomcp_planner_j = solve(ipomcp_solver_j, tiger_ipomdp_j)
@@ -52,6 +52,36 @@ function tester()
         planningTime = (t2 - t1)/1.0e9
         println("planning time: ",planningTime)
         total_planning_time += planningTime
+
+        #Verification print:
+        belief_hist_i = belief_hist(hist_i)
+        belief_hist_j = belief_hist(hist_j)
+
+        state_hist_i = state_hist(hist_i)
+        state_hist_j = state_hist(hist_j)
+
+        action_hist_i = action_hist(hist_i)
+        action_hist_j = action_hist(hist_j)
+
+        obs_hist_i = observation_hist(hist_i)
+        obs_hist_j = observation_hist(hist_j)
+
+        rwd_hist_i = reward_hist(hist_i)
+        rwd_hist_j = reward_hist(hist_j)
+
+        for step in 1:length(belief_hist_i)-1
+            println("Step: ", step-1)
+            state_belief_i = get_physical_state_probability(belief_hist_i[step])
+            state_belief_j = get_physical_state_probability(belief_hist_j[step])
+
+            print("\tAgent_i: ")
+            sparse_print(belief_hist_i[step])
+            println(" Action_i = ",action_hist_i[step], " Reward_i = ", rwd_hist_i[step]);
+            print("\tAgent_j: ")
+            sparse_print(belief_hist_j[step])
+            println(" Action_j = ",action_hist_j[step], " Reward_j = ", rwd_hist_j[step]);
+            println()
+        end
     end
     println("Average Planning Time: ", total_planning_time/(num_iter*2))
     #println("Average Belief Update Time: ", total_updating_time/(num_iter*2))
@@ -88,8 +118,8 @@ function test_intersection_problem()
     total_planning_time = 0.0
     total_updating_time = 0.0
 
-    pomdp_i = IPOMCP.IntersectionPOMDP(agID = 1)
-    pomdp_j = IPOMCP.IntersectionPOMDP(agID = 2)
+    pomdp_i = IPOMCP.IntersectionPOMDP(agID = 1, decision_timestep = 0.5)
+    pomdp_j = IPOMCP.IntersectionPOMDP(agID = 2, decision_timestep = 0.5)
 
     static_dist_frame_sets_i =
         IPOMCP.initialize_static_distribution_frame_sets(pomdp_i)
@@ -128,9 +158,9 @@ function test_intersection_problem()
         println()
         #println("Physical state belief:", get_physical_state_probability(init_belief_j),"\n\n")
         =#
-        ipomcp_solver_i = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,tree_queries=1000,rng=rng),num_particles_i[1],5.0),
+        ipomcp_solver_i = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=15,tree_queries=1000,rng=rng),num_particles_i[1],5.0),
                                 (POMCPSolver(max_depth=5,tree_queries=5000,rng=rng),num_particles_i[2],30.0)])
-        ipomcp_solver_j = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,tree_queries=1000,rng=rng),num_particles_j[1],5.0),
+        ipomcp_solver_j = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=15,tree_queries=1000,rng=rng),num_particles_j[1],5.0),
                                 (POMCPSolver(max_depth=5,tree_queries=5000,rng=rng),num_particles_j[2],30.0)])
 
         ipomcp_planner_i = solve(ipomcp_solver_i, ipomdp_i)
@@ -147,6 +177,39 @@ function test_intersection_problem()
         planningTime = (t2 - t1)/1.0e9
         println("planning time: ",planningTime)
         total_planning_time += planningTime
+
+        #Verification print:
+        belief_hist_i = belief_hist(hist_i)
+        belief_hist_j = belief_hist(hist_j)
+
+        state_hist_i = state_hist(hist_i)
+        state_hist_j = state_hist(hist_j)
+
+        action_hist_i = action_hist(hist_i)
+        action_hist_j = action_hist(hist_j)
+
+        obs_hist_i = observation_hist(hist_i)
+        obs_hist_j = observation_hist(hist_j)
+
+        rwd_hist_i = reward_hist(hist_i)
+        rwd_hist_j = reward_hist(hist_j)
+
+        total_rwd_i = 0.0
+        total_rwd_j = 0.0
+        for step in 1:length(belief_hist_i)-1
+            println("Step: ", step-1)
+
+            print("\tAgent_i: ")
+            sparse_print(belief_hist_i[step])
+            println(" Action_i = ",action_hist_i[step], " Reward_i = ", rwd_hist_i[step]);
+            total_rwd_i += rwd_hist_i[step]
+            print("\tAgent_j: ")
+            sparse_print(belief_hist_j[step])
+            println(" Action_j = ",action_hist_j[step], " Reward_j = ", rwd_hist_j[step]);
+            total_rwd_j += rwd_hist_j[step]
+            println()
+        end
+        println("Cum_rwd_i = $total_rwd_i, Cum_rwd_j = $total_rwd_j ")
     end
     println("Average Planning Time: ", total_planning_time/(num_iter*2))
 end

@@ -7,8 +7,8 @@ const CR = 3
 
 #Actions
 const OL = 1
-const L  = 2
-const OR = 3
+const OR = 2
+const L  = 3
 
 #States
 const TL = 1
@@ -29,6 +29,13 @@ end
 
 Level_l_tigerPOMDP(;r_listen=-1.0, r_findtiger=-100.0, r_findgold=10.0, p_growl=0.85, p_creak=0.9, p_reset=0.5, discount=0.95, agID=1) = Level_l_tigerPOMDP(r_listen, r_findtiger, r_findgold, p_growl, p_reset, p_creak, discount,agID)
 
+==(a::Level_l_tigerPOMDP, b::Level_l_tigerPOMDP) = (a.agID == b.agID &&
+        a.discount_factor == b.discount_factor && a.r_listen == b.r_listen &&
+        a.r_findtiger == b.r_findtiger && a.r_findgold == b.r_findgold &&
+        a.p_growl == b.p_growl && a.p_creak == b.p_creak && a.p_reset == b.p_reset)
+Base.hash(a::Level_l_tigerPOMDP) = hash((a.agID, a.discount_factor, a.r_listen,
+                                        a.r_findtiger,
+                                            a.r_findgold, a.p_growl, a.p_creak, a.p_reset))
 discount(p::Level_l_tigerPOMDP) = p.discount_factor
 
 function isterminal(p::Level_l_tigerPOMDP, st::Int64)
@@ -74,6 +81,7 @@ function generate_s(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng:
             rand(rng) < 0.5 ? sp = TR : sp = TL
         end
     end
+    return sp
 end
 function generate_o(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, sp::Int64, rng::AbstractRNG)
     agID = p.agID
@@ -194,7 +202,7 @@ function generate_sor(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rn
             r = p.r_findtiger
         end
     end
-    return s,o,r
+    return sp,o,r
 end
 function generate_so(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng::AbstractRNG)
     sp = generate_s(p, s, a, rng)
@@ -227,6 +235,12 @@ function reward(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng::Abs
         end
     end
     return r
+end
+
+function generate_sr(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng::AbstractRNG)
+    sp = generate_s(p, s, a, rng)
+    r = reward(p,s,a,rng)
+    return sp,r
 end
 
 function generate_or(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, sp::Int64, rng::AbstractRNG)
@@ -415,5 +429,5 @@ function rand(rng, dist::Tiger_Frame_Distribution, n_particles::Vector{Int64})
         push!(particles, InteractiveState{Int64}(s,model))
     end
 
-    return InteractiveParticleCollection{InteractiveState{Int64}}(ParticleCollection{InteractiveState{Int64}}(particles))
+    return InteractiveParticleCollection(particles)
 end

@@ -19,8 +19,8 @@ solve(solver::IPOMCPSolver, ipomdp::IPOMDP_2) = IPOMCPPlanner(solver, ipomdp)   
 
 function updater(p::IPOMCPPlanner)
     ipomdp = p.problem
-    pomcpsolver = p.solver.solvers[ipomdp.level+1][1]
-    n_particles = p.solver.solvers[ipomdp.level+1][2]
+    pomcpsolver = getsolver(p.solver,ipomdp.level)
+    n_particle = n_particles(p.solver,ipomdp.level)
     #=P = typeof(p.problem)
     S = state_type(P)
     A = action_type(P)
@@ -28,7 +28,7 @@ function updater(p::IPOMCPPlanner)
     if !@implemented ParticleFilters.obs_weight(::P, ::S, ::A, ::S, ::O)
         return UnweightedParticleFilter(p.problem, p.solver.tree_queries, rng=p.rng)
     end=#
-    return SimpleInteractiveParticleFilter(ipomdp, LowVarianceResampler(n_particles), p.rng, p.solver)	# This may need to change. Because IPF needed
+    return SimpleInteractiveParticleFilter(ipomdp, LowVarianceResampler(n_particle), p.rng, p.solver)	# This may need to change. Because IPF needed
 end
 
 function actionProb(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief)
@@ -37,9 +37,13 @@ function actionProb(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief)
     local actProb::Dict{action_type(p.problem),Float64}
     try
         tree = POMCPTree(ipomdp, pomcpsolver.tree_queries)
+        if isnull(b.act_prob)
+            b.act_prob = Nullable(search(p,b,tree))
+            p._tree = Nullable(tree)
+        end
 
-        actProb = search(p,b,tree)
-        p._tree = Nullable(tree)
+        actProb = get(b.act_prob)
+
     catch ex
         # Note: this might not be type stable, but it shouldn't matter too much here
         a = convert(action_type(p.problem), default_action(pomcpsolver.default_action, p.problem, b, ex))
@@ -51,18 +55,20 @@ end
 
 function action(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief)
     ipomdp = p.problem
-    pomcpsolver = p.solver.solvers[ipomdp.level+1][1]
+    pomcpsolver = getsolver(p.solver,ipomdp.level)
     local a::action_type(p.problem)
     rng = p.rng
 
     try
         tree = POMCPTree(ipomdp, pomcpsolver.tree_queries)
 
-        actProb = search(p,b,tree)  #quantal response model for action probability
+        if isnull(b.act_prob)
+            b.act_prob = Nullable(search(p,b,tree))
+            p._tree = Nullable(tree)
+        end
+        actProb = get(b.act_prob)
 
         a = rand(actProb, rng)
-
-		p._tree = Nullable(tree)
 	catch ex
         # Note: this might not be type stable, but it shouldn't matter too much here
         a = convert(action_type(p.problem), default_action(pomcpsolver.default_action, p.problem, b, ex))
@@ -89,7 +95,7 @@ function search(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief, t::Basic
     if all_terminal
         throw(AllSamplesTerminal(b))
     end
-    lambda = p.solver.solvers[p.problem.level+1][3]
+    lambda = qr_constant(p.solver,p.problem.level)
 
     actValue = Dict{action_type(p.problem),Float64}()
     #println("Accessing values")
@@ -100,6 +106,7 @@ function search(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief, t::Basic
     end
     #println(actValue)
     #println("lambda=$lambda")
+    b.act_value = Nullable(actValue)
     actProb = quantal_response_probability(actValue, lambda)
     #println("Action Probs ", actProb)
     return actProb
@@ -166,7 +173,6 @@ function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPO
     a = t.a_labels[ha]												#action label
 
     sp, o, r = generate_sor(p.problem, s, a, aj, p.rng)
-    mjp = rand(update_model(mj, s, a, aj, sp, p.rng,p.solver), p.rng)
 
     hao = get(t.o_lookup, (ha, o), 0)
     if hao == 0
@@ -178,6 +184,7 @@ function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPO
                            steps-1)
         R = r + discount(p.problem)*v
     else
+        mjp = rand(update_model(mj, s, a, aj, sp, p.rng,p.solver), p.rng)
         isp = InteractiveState(sp, mjp)
         R = r + discount(p.problem)*simulate(p, isp, BasicPOMCP.POMCPObsNode(t, hao), steps-1)
     end
