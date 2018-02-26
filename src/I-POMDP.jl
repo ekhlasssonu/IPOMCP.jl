@@ -140,7 +140,7 @@ function generate_sor{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, rng::Abstr
         a1 = oa
         a2 = a
     end
-
+    #println("a1 = $a1, a2 = $a2")
     return generate_sor(ipomdp.thisPOMDP, s, (a1,a2), rng)
 end
 

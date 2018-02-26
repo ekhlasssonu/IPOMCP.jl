@@ -57,7 +57,7 @@ function SimpleInteractiveParticleFilter{R}(ipomdp::IPOMDP_2, resample::R, rng::
 end
 
 #Input is an interactive particle filter, set of interactive particles, and action and observation of subject agent.
-function update{IS}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticleCollection{IS}, a, o)
+function update{IS,A,O}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticleCollection{IS}, a::A, o::O, replenish_s::Nullable = Nullable())
     if haskey(bel.next_bel,(a,o))
         return bel.next_bel[(a,o)]
     end
@@ -76,15 +76,36 @@ function update{IS}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticl
     sizehint!(wm, n_particles(bel)*n_aj*50)
     all_terminal = true
 
+    #for i in 1:1-level(ipomdp)
+    #    print("\t")
+    #end
+
+    #println("Updating : agent = $(agentID(ipomdp)) level = $(level(ipomdp)) a = $a, o = $o")
+    #print(bel,1-level(ipomdp))
+    #println()
+
+
     for i in 1:n_particles(bel)
         is = ps[i]
         s = is.env_state
         m_j = is.model
         #local aj::oaction_type(up.ipomdp)
+        #for i in 1:2-level(ipomdp)
+        #    print("\t")
+        #end
+        #println("Updating State: ", s, " model: ",m_j)
 
         if !isterminal(up.ipomdp.thisPOMDP, s)
+            #for i in 1:2-level(ipomdp)
+            #    print("\t")
+            #end
+            #println("Not terminal")
             all_terminal = false
             if typeof(m_j) <: Intentional_Model
+                #for i in 1:2-level(ipomdp)
+                #    print("\t")
+                #end
+                #println("Intentional model")
                 frame_j = m_j.frame
                 b_j = m_j.belief
                 level_j = level(frame_j)
@@ -95,6 +116,10 @@ function update{IS}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticl
                 aj_prob = get(b_j.act_prob)
                 #aj = action(j_planner, b_j)
             else
+                #for i in 1:2-level(ipomdp)
+                #    print("\t")
+                #end
+                #println("subintentional model")
                 frame_j = m_j.frame
                 hist_j = m_j.history
                 j_solver = solver(frame_j, rng=rng) #NOTE: Other Subintentional models should implement the same function calls
@@ -107,14 +132,26 @@ function update{IS}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticl
                 if p_aj < 1e-5
                     continue
                 end
-                sp,r = generate_sr(up.ipomdp, s, a, aj, rng)
-                pr_o = obs_weight(up.ipomdp, s, a, aj, sp, o, rng)
+                #for i in 1:3-level(ipomdp)
+                #    print("\t")
+                #end
+                #print("a = $a, aj = $aj, p_aj = $p_aj")
+                pr_o = 0.0
+                local sp::typeof(s)
+                local r::Float64
+                #while pr_o == 0.0
+                    sp,r = generate_sr(up.ipomdp, s, a, aj, rng)
+                    #print(" obs_weight(agent $(agentID(up.ipomdp)) level $(level(up.ipomdp)), state = $sp, o = $o")
+                    pr_o = obs_weight(up.ipomdp, s, a, aj, sp, o, rng)
+                    #println(" pr_o = $pr_o")
+                #end
                 if pr_o < 1e-5
                     continue
                 end
                 updated_model_probs = update_model(m_j, s, a, aj, sp, rng, up.solver)
                 #modelp = rand(updated_model_probs,rng)
                 for (modelp, oj_prob) in updated_model_probs
+                    #println(" oj_prob = $oj_prob")
                     if oj_prob < 1e-5
                         continue
                     end
@@ -126,14 +163,49 @@ function update{IS}(up::SimpleInteractiveParticleFilter, bel::InteractiveParticl
         end
     end
     if all_terminal
-        error("Particle filter update error: all states in the particle collection were terminal.")
-        # TODO: create a mechanism to handle this failure
+        #error("Particle filter update error: all states in the particle collection were terminal.")
+        return bel
+    end
+    #println("Length of pm = ", length(pm))
+    #Particle replenishment
+    if !isnull(replenish_s)
+        #println("Not null")
+        sp = get(replenish_s)
+        is_vector = replenish(ipomdp, sp, round(Int64,n_particles(bel)* 0.1), rng)
+        #println("Length of replenished is_vector = ",length(is_vector))
+        for is in is_vector
+            push!(pm, is)
+            push!(wm, 1.0)
+        end
     end
     updated_bel =  InteractiveParticleCollection(resample(up.resample, WeightedParticleBelief{IS}(pm, wm, sum(wm), nothing), up.rng))
     bel.next_bel[(a,o)] = updated_bel
     return updated_bel
 end
 
+function replenish{S}(ipomdp::IPOMDP_2, sp::S, n::Int64, rng::AbstractRNG)
+    num_particles = num_nested_particles(ipomdp.thisPOMDP, ipomdp)
+    lvl = level(ipomdp)
+    n_frames = length(ipomdp.oaSM) + length(ipomdp.oaFrames)
+    is_vector = sizehint!(Vector{InteractiveState{S}}(),n)
+    for i in 1:n
+        fr_id = rand(1:n_frames)
+        if fr_id <= length(ipomdp.oaSM)
+            si_fr = ipomdp.oaSM[fr_id]
+            model = sample_model(si_fr, rng)
+            push!(is_vector, InteractiveState(sp, model))
+        else
+            in_fr = ipomdp.oaFrames[fr_id - length(ipomdp.oaSM)]
+            oa_bel_n_particles = num_particles[level(in_fr)+1]
+            oa_is_vect = replenish(in_fr, sp, oa_bel_n_particles, rng)
+            oa_belief = InteractiveParticleCollection(oa_is_vect)
+            model = Intentional_Model(in_fr, oa_belief)
+            push!(is_vector, InteractiveState(sp, model))
+        end
+    end
+
+    return is_vector
+end
 function Base.srand(f::SimpleInteractiveParticleFilter, seed)
     srand(f.rng, seed)
     return f
@@ -157,6 +229,7 @@ function get_physical_state_probability(belief::InteractiveParticleCollection)
     st_prob = Dict{T,Float64}()
     for is in particle_set
         s = is.env_state
+        #println("state = ",s," hash value = ", hash(s))
         if !(haskey(st_prob, s))
             st_prob[s] = 1.0/n_particle
         else
@@ -174,14 +247,18 @@ function sparse_print(belief::InteractiveParticleCollection)
         print("=>",round(p,2),", ")
     end
     print("], Action Value: [")
-    for (a,v) in get(belief.act_value)
-        print(a)
-        print("=>",round(v,2),", ")
+    if !isnull(belief.act_value)
+        for (a,v) in get(belief.act_value)
+            print(a)
+            print("=>",round(v,2),", ")
+        end
     end
     print("], Action Prob: [")
-    for (a,p) in get(belief.act_prob)
-        print(a)
-        print("=>",round(p,2),", ")
+    if !isnull(belief.act_prob)
+        for (a,p) in get(belief.act_prob)
+            print(a)
+            print("=>",round(p,2),", ")
+        end
     end
     print("]")
 end

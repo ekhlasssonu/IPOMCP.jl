@@ -20,13 +20,23 @@ function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, aj::OA, sp::S,
     frame = m_j.frame
     belief = m_j.belief
     oj_set = observations(frame)    #TODO Try generate_o followed by obs_weight
-    n = n_particles(belief)
+    lvl = level(frame)
+    n = num_nested_particles(frame.thisPOMDP, frame)[lvl+1]#n_particles(belief)
 
     j_ID = agentID(frame)
     i_ID = 1
     if j_ID == 1
         i_ID = 2
     end
+
+    #=println("\t\tUpdate Model: for agent $j_ID")
+    println("\t\ts  = ", s)
+    if j_ID == 1
+        println("\t\ta = $aj,$a")
+    else
+        println("\t\ta = $a,$aj")
+    end
+    println("\t\tsp = ", sp)=#
 
     i_ID == 1 ? jnt_act = (a,aj) : jnt_act = (aj,a)
 
@@ -36,11 +46,13 @@ function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, aj::OA, sp::S,
 
     for oj in oj_set
         #order of actions reversed because frame is ipomdp for the other agent,
-        p_oj = obs_weight(frame, s, aj, a, sp, oj, rng) #NOTE: first sp is a dummy
+        p_oj = obs_weight(frame, s, aj, a, sp, oj, rng) #NOTE: first s is a dummy
         if p_oj < 1e-5
             continue
         end
-        m_jp = Intentional_Model(frame, update(ipf, belief, aj, oj))
+        #println("\t\toj = $oj p_oj = $p_oj")
+        replenish_state = Nullable{S}(sp)
+        m_jp = Intentional_Model(frame, update(ipf, belief, aj, oj, replenish_state))
         if haskey(updated_model_probs, m_jp)
             updated_model_probs[m_jp] += p_oj
         else

@@ -114,102 +114,126 @@ function tester()
 end
 
 function test_intersection_problem()
-    num_iter = 1
+    num_iter = 100
     total_planning_time = 0.0
     total_updating_time = 0.0
 
-    pomdp_i = IPOMCP.IntersectionPOMDP(agID = 1, decision_timestep = 0.5)
-    pomdp_j = IPOMCP.IntersectionPOMDP(agID = 2, decision_timestep = 0.5)
+    pomdp_i = IPOMCP.IntersectionPOMDP(agID = 1, decision_timestep = 1.0)
+    pomdp_j = IPOMCP.IntersectionPOMDP(agID = 2, decision_timestep = 1.0)
 
     static_dist_frame_sets_i =
         IPOMCP.initialize_static_distribution_frame_sets(pomdp_i)
     intentional_frame_sets_i =
-        IPOMCP.initialize_intentional_frame_sets(pomdp_i)
+        IPOMCP.initialize_intentional_frame_sets([pomdp_i,pomdp_j])
     static_dist_frame_sets_j =
         IPOMCP.initialize_static_distribution_frame_sets(pomdp_j)
     intentional_frame_sets_j =
-        IPOMCP.initialize_intentional_frame_sets(pomdp_j)
+        IPOMCP.initialize_intentional_frame_sets([pomdp_i,pomdp_j])
 
-    ipomdp_i = IPOMCP.IPOMDP_2(1,1,pomdp_i, static_dist_frame_sets_i, intentional_frame_sets_i)
-    ipomdp_j = IPOMCP.IPOMDP_2(2,1,pomdp_j, static_dist_frame_sets_j, intentional_frame_sets_j)
-    #println(ipomdp_i)
-    #println(ipomdp_j)
+    for lvl_j in 1:1
+        for lvl_i in 1:lvl_j
+            ipomdp_i = IPOMCP.IPOMDP_2(1,lvl_i,pomdp_i, static_dist_frame_sets_i, intentional_frame_sets_i)
+            ipomdp_j = IPOMCP.IPOMDP_2(2,1,pomdp_j, static_dist_frame_sets_j, intentional_frame_sets_j)
+            println(ipomdp_i)
+            println(ipomdp_j)
 
-    dist_i = initial_state_distribution(ipomdp_i)
-    dist_j = initial_state_distribution(ipomdp_j)
-    #println(dist_i)
-    #println(dist_j)
-    num_particles_i = num_nested_particles(ipomdp_i.thisPOMDP, ipomdp_i)
-    num_particles_j = num_nested_particles(ipomdp_j.thisPOMDP, ipomdp_j)
+            dist_i = initial_state_distribution(ipomdp_i)
+            dist_j = initial_state_distribution(ipomdp_j)
+            #println(dist_i)
+            #println(dist_j)
+            num_particles_i = num_nested_particles(ipomdp_i.thisPOMDP, ipomdp_i)
+            num_particles_j = num_nested_particles(ipomdp_j.thisPOMDP, ipomdp_j)
 
-    for itr in 1:num_iter
-        println("************Iteration $itr**************")
-        rng = MersenneTwister(itr)
-        init_belief_i =  rand(rng, dist_i, num_particles_i)
-        init_belief_j =  rand(rng, dist_j, num_particles_j)
+            num_success = 0
+            num_steps = 0
+            avg_rwd_i = 0.0
+            avg_rwd_j = 0.0
+            num_hardbrakes_i = 0
+            num_hardbrakes_j = 0
+            for itr in 1:num_iter
+                println("************Iteration $itr**************")
+                rng = MersenneTwister(itr)
+                rng_i = MersenneTwister(itr*5 + 3)
+                rng_j = MersenneTwister(itr*3 + 5)
+                ipomcp_solver_i = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,tree_queries=200,c=1.0,rng=rng_i),num_particles_i[1],0.5),
+                                        (POMCPSolver(max_depth=5,tree_queries=1000,c=1.0,rng=rng_i),num_particles_i[2],1.0)])
+                ipomcp_solver_j = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,c=1.0,tree_queries=200,rng=rng_j),num_particles_j[1],0.5),
+                                        (POMCPSolver(max_depth=5,tree_queries=1000,c=1.0,rng=rng_j),num_particles_j[2],1.0)])
 
-        #=println("Initial Belief for i:")
-        print(init_belief_i)
-        println()
-        #println("Physical state belief:", get_physical_state_probability(init_belief_i),"\n\n")
+                ipomcp_planner_i = solve(ipomcp_solver_i, ipomdp_i)
+                ipomcp_planner_j = solve(ipomcp_solver_j, ipomdp_j)
+                #init_state = rand(rng, initial_state_distribution(ipomdp_i.thisPOMDP))
+                #println("s = $init_state")
+                #println("computing...")
+                t1 = time_ns()
+                hr = HistoryRecorder(max_steps = 20, rng = rng)
+                hist_i, hist_j = simulate(hr, ipomdp_i, ipomcp_planner_i, ipomdp_j, ipomcp_planner_j)
+                t2 = time_ns()
+                planningTime = (t2 - t1)/1.0e9
+                #println("planning time: ",planningTime)
+                total_planning_time += planningTime
 
-        println("Initial Belief for j:")
-        print(init_belief_j)
-        println()
-        #println("Physical state belief:", get_physical_state_probability(init_belief_j),"\n\n")
-        =#
-        ipomcp_solver_i = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=15,tree_queries=1000,rng=rng),num_particles_i[1],5.0),
-                                (POMCPSolver(max_depth=5,tree_queries=5000,rng=rng),num_particles_i[2],30.0)])
-        ipomcp_solver_j = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=15,tree_queries=1000,rng=rng),num_particles_j[1],5.0),
-                                (POMCPSolver(max_depth=5,tree_queries=5000,rng=rng),num_particles_j[2],30.0)])
+                #Verification print:
+                belief_hist_i = belief_hist(hist_i)
+                belief_hist_j = belief_hist(hist_j)
 
-        ipomcp_planner_i = solve(ipomcp_solver_i, ipomdp_i)
-        ipomcp_planner_j = solve(ipomcp_solver_j, ipomdp_j)
-        init_state = rand(rng, initial_state_distribution(ipomdp_i.thisPOMDP))
-        println("s = $init_state")
-        println("computing...")
-        updater_i = updater(ipomcp_planner_i)
-        updater_j = updater(ipomcp_planner_j)
-        t1 = time_ns()
-        hr = HistoryRecorder(max_steps = 15, rng = rng)
-        hist_i, hist_j = simulate(hr, ipomdp_i, ipomcp_planner_i, ipomdp_j, ipomcp_planner_j)
-        t2 = time_ns()
-        planningTime = (t2 - t1)/1.0e9
-        println("planning time: ",planningTime)
-        total_planning_time += planningTime
+                state_hist_i = state_hist(hist_i)
+                state_hist_j = state_hist(hist_j)
 
-        #Verification print:
-        belief_hist_i = belief_hist(hist_i)
-        belief_hist_j = belief_hist(hist_j)
+                action_hist_i = action_hist(hist_i)
+                action_hist_j = action_hist(hist_j)
 
-        state_hist_i = state_hist(hist_i)
-        state_hist_j = state_hist(hist_j)
+                obs_hist_i = observation_hist(hist_i)
+                obs_hist_j = observation_hist(hist_j)
 
-        action_hist_i = action_hist(hist_i)
-        action_hist_j = action_hist(hist_j)
+                rwd_hist_i = reward_hist(hist_i)
+                rwd_hist_j = reward_hist(hist_j)
 
-        obs_hist_i = observation_hist(hist_i)
-        obs_hist_j = observation_hist(hist_j)
+                total_rwd_i = 0.0
+                total_rwd_j = 0.0
 
-        rwd_hist_i = reward_hist(hist_i)
-        rwd_hist_j = reward_hist(hist_j)
+                if state_hist_i[length(state_hist_i)].terminal == 2
+                    num_success += 1;
+                    print("Success. ")
+                elseif state_hist_i[length(state_hist_i)].terminal == 1
+                    print("Collision. ")
+                else
+                    print("Failure. ")
+                end
+                num_steps += length(belief_hist_i)-1
+                for step in 1:length(belief_hist_i)-1
+                    a_i = VehicleActionSpace_Intersection().actions[action_hist_i[step]]
+                    if (a_i.accl <= -4.0)
+                        num_hardbrakes_i += 1
+                    end
 
-        total_rwd_i = 0.0
-        total_rwd_j = 0.0
-        for step in 1:length(belief_hist_i)-1
-            println("Step: ", step-1)
+                    a_j = VehicleActionSpace_Intersection().actions[action_hist_j[step]]
+                    if (a_j.accl <= -4.0)
+                        num_hardbrakes_j += 1
+                    end
 
-            print("\tAgent_i: ")
-            sparse_print(belief_hist_i[step])
-            println(" Action_i = ",action_hist_i[step], " Reward_i = ", rwd_hist_i[step]);
-            total_rwd_i += rwd_hist_i[step]
-            print("\tAgent_j: ")
-            sparse_print(belief_hist_j[step])
-            println(" Action_j = ",action_hist_j[step], " Reward_j = ", rwd_hist_j[step]);
-            total_rwd_j += rwd_hist_j[step]
-            println()
+                    #sparse_print(belief_hist_i[step])
+                    if state_hist_i[length(state_hist_i)].terminal != 2
+                        println("Step: ", step-1)
+                        println("State: ",state_hist_i[step])
+                        print("\tAgent_i: ")
+                        println(" Action_i = ",action_hist_i[step], " Reward_i = ", rwd_hist_i[step]);
+                        print("\tAgent_j: ")
+                        #sparse_print(belief_hist_j[step])
+                        println(" Action_j = ",action_hist_j[step], " Reward_j = ", rwd_hist_j[step]);
+                    end
+                    total_rwd_i += rwd_hist_i[step]
+                    total_rwd_j += rwd_hist_j[step]
+                    #println()
+                end
+                println("Cum_rwd_i = $total_rwd_i, Cum_rwd_j = $total_rwd_j ")
+                avg_rwd_i += total_rwd_i
+                avg_rwd_j += total_rwd_j
+            end
+            println("Average Planning Time: ", total_planning_time/(num_iter*2))
+            println("Num success = $num_success avg num time steps = ", 1.0 * num_steps/num_iter)
+            println("Avg num hardbrakes_i = ", 1.0*num_hardbrakes_i/num_iter, " Avg num hardbrakes_j = ", 1.0*num_hardbrakes_j/num_iter)
+            println("Avg rwd_i = ", avg_rwd_i/num_iter, " Avg rwd_j = ", avg_rwd_j/num_iter)
         end
-        println("Cum_rwd_i = $total_rwd_i, Cum_rwd_j = $total_rwd_j ")
     end
-    println("Average Planning Time: ", total_planning_time/(num_iter*2))
 end

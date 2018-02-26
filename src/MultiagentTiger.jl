@@ -33,9 +33,9 @@ Level_l_tigerPOMDP(;r_listen=-1.0, r_findtiger=-100.0, r_findgold=10.0, p_growl=
         a.discount_factor == b.discount_factor && a.r_listen == b.r_listen &&
         a.r_findtiger == b.r_findtiger && a.r_findgold == b.r_findgold &&
         a.p_growl == b.p_growl && a.p_creak == b.p_creak && a.p_reset == b.p_reset)
-Base.hash(a::Level_l_tigerPOMDP) = hash((a.agID, a.discount_factor, a.r_listen,
+Base.hash(a::Level_l_tigerPOMDP, h::UInt64=zero(UInt64)) = hash((a.agID, a.discount_factor, a.r_listen,
                                         a.r_findtiger,
-                                            a.r_findgold, a.p_growl, a.p_creak, a.p_reset))
+                                            a.r_findgold, a.p_growl, a.p_creak, a.p_reset),h)
 discount(p::Level_l_tigerPOMDP) = p.discount_factor
 
 function isterminal(p::Level_l_tigerPOMDP, st::Int64)

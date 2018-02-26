@@ -38,6 +38,7 @@ function actionProb(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief)
     try
         tree = POMCPTree(ipomdp, pomcpsolver.tree_queries)
         if isnull(b.act_prob)
+            #println("going to search from actionProb")
             b.act_prob = Nullable(search(p,b,tree))
             p._tree = Nullable(tree)
         end
@@ -58,13 +59,18 @@ function action(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief)
     pomcpsolver = getsolver(p.solver,ipomdp.level)
     local a::action_type(p.problem)
     rng = p.rng
-
+    #println("********** Getting action for agent $(agentID(ipomdp)) @ level $(level(ipomdp))**********")
+    #sparse_print(b)
+    #println();
     try
         tree = POMCPTree(ipomdp, pomcpsolver.tree_queries)
 
         if isnull(b.act_prob)
+            #println("going to search")
             b.act_prob = Nullable(search(p,b,tree))
             p._tree = Nullable(tree)
+        #else
+            #println("Not Null actProb")
         end
         actProb = get(b.act_prob)
 
@@ -73,11 +79,13 @@ function action(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief)
         # Note: this might not be type stable, but it shouldn't matter too much here
         a = convert(action_type(p.problem), default_action(pomcpsolver.default_action, p.problem, b, ex))
     end
+    #println("**********Action for agent $(agentID(ipomdp)) @ level $(level(ipomdp)) is $a**********")
 	return a
 end
 
 function search(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief, t::BasicPOMCP.POMCPTree)
     ipomdp = p.problem
+    #println("\tIn Search. agent $(agentID(ipomdp)), level $(level(ipomdp))")
     pomcpsolver = p.solver.solvers[ipomdp.level+1][1]
     all_terminal = true
     start_us = CPUtime_us()
@@ -87,13 +95,15 @@ function search(p::IPOMCPPlanner, b::AbstractParticleInteractiveBelief, t::Basic
         end
         is = rand(p.rng, b)										# returns an interactive state implemented
         if !isterminal(p.problem.thisPOMDP, is.env_state)
+            #println("\tGoing to simulate. agent $(agentID(ipomdp)), level $(level(ipomdp))")
             simulate(p, is, BasicPOMCP.POMCPObsNode(t, 1), pomcpsolver.max_depth)
             all_terminal = false
         end
     end
 
     if all_terminal
-        throw(AllSamplesTerminal(b))
+        return Dict(actions(ipomdp)[1]=>1.0)
+        #throw(AllSamplesTerminal(b))
     end
     lambda = qr_constant(p.solver,p.problem.level)
 
@@ -120,31 +130,39 @@ function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPO
     if agID == 1
         oaID = 2
     end
+    #println("\t\ts = ",s)
     if steps == 0 || isterminal(p.problem.thisPOMDP, s)
+        #println("\t\tsteps = ",steps, "terminal = ",isterminal(p.problem.thisPOMDP, s))
         return 0.0
     end
+
+    #println("\t\t In simulate")
+    #println("\t\tstate = ",s," agId = ",agID, " oaId = ",oaID)
 
     lvl = level(p.problem)
     pomcpsolver = p.solver.solvers[lvl+1][1]
 
     local aj::oaction_type(p.problem)
     if typeof(mj) <: Intentional_Model
+        #println("\t\tLevel $lvl, mj is intentional")
         b_j = mj.belief
         mj_frame = mj.frame
-        #mj_solver = p.solver.solvers[mj_frame.level+1][1]
         if isnull(b_j.act_prob)
+            #println("\t\tb_j.actProb is null")
             j_planner = solve(p.solver, mj_frame)
             b_j.act_prob = Nullable(actionProb(j_planner, b_j))
         end
         aj_prob = get(b_j.act_prob)
         aj = rand(aj_prob,p.rng)
     else
+        #println("\t\t Level $lvl, mj is sub-intentional")
         frame_j = mj.frame
         hist_j = mj.history
         j_solver = solver(frame_j, rng=p.rng) #NOTE: Other Subintentional models should implement the same function calls
         j_planner = solve(j_solver, frame_j)
         aj = action(j_planner, hist_j)
     end
+    #println("\t\ta_$oaID = $aj")
 
     t = hnode.tree
     h = hnode.node													#This is the index of the current node in the tree

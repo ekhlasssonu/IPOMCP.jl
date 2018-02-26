@@ -16,16 +16,18 @@ end
 
 function quantal_response_probability{A}(val::Dict{A,Float64}, lambda::Float64=Inf)
     acts = collect(keys(val))
-    abssum = 0.0
+    min_value = 0.0
     for v in values(val)
-        abssum += v
+        if v < min_value
+            min_value = v
+        end
     end
-    abssum = abs(abssum)
+
     exp_value = zeros(Float64, length(acts))
     sum = 0.0
     i = 1
     for v in values(val)
-        exp_value[i] = exp(lambda * v/abssum)
+        exp_value[i] = exp(lambda * (v-min_value))
         sum += exp_value[i]
         i += 1
     end
