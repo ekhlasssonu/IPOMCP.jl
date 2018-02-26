@@ -131,7 +131,7 @@ function test_intersection_problem()
         IPOMCP.initialize_intentional_frame_sets([pomdp_i,pomdp_j])
 
     for lvl_j in 1:1
-        for lvl_i in 1:lvl_j
+        for lvl_i in 0:lvl_j
             ipomdp_i = IPOMCP.IPOMDP_2(1,lvl_i,pomdp_i, static_dist_frame_sets_i, intentional_frame_sets_i)
             ipomdp_j = IPOMCP.IPOMDP_2(2,1,pomdp_j, static_dist_frame_sets_j, intentional_frame_sets_j)
             println(ipomdp_i)

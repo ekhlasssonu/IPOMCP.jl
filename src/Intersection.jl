@@ -107,7 +107,7 @@ function check_collision(s_i::CarPhysicalState2d, s_j::CarPhysicalState2d)
     return false
 end
 
-type IntersectionPOMDP <: POMDP{IntersectionState2d, Tuple{Int64,Int64}, Tuple{Int64,Int64}}
+type IntersectionPOMDP <: POMDP{IntersectionState2d, Tuple{Int64,Int64}, Tuple{Tuple{Int64,Int64},Tuple{Int64,Int64}}}
     desired_velocity::Float64
     collision_cost::Float64
     success_reward::Float64
@@ -153,11 +153,14 @@ function action_index(p::IntersectionPOMDP, a::Tuple{Int64, Int64})
     return i
 end
 function observations(p::IntersectionPOMDP)
-    observation_set = sizehint!(Vector{Tuple{Int64,Int64}}(), 100)
-    for i_dist in 1:7
-        for j_dist in 1:7
-
-            push!(observation_set, (i_dist,j_dist))
+    observation_set = sizehint!(Vector{Tuple{Tuple{Int64,Int64},Tuple{Int64,Int64}}}(), 100)
+    for i_dist in 1:6
+        for i_vel in 1:5
+            for j_dist in 1:6
+                for j_vel in 1:5
+                    push!(observation_set, ((i_dist,i_vel),(j_dist,j_vel)))
+                end
+            end
         end
     end
     return observation_set
@@ -254,45 +257,61 @@ function generate_o(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64
     s_j = sp.agent_states[2]
 
     dist_i = s_i.state[1]
+    vel_i = s_i.state[4]
     dist_j = s_j.state[2]
+    vel_j = s_j.state[4]
     desired_velocity = p.desired_velocity
     time_step = p.decision_timestep
 
-    #print("dist_i = $dist_i")
-
-    o_i = 1
+    oi_dist = 1
     if dist_i <= 5.0 && dist_i > 0.0
-        o_i = 2
+        oi_dist = 2
     elseif dist_i > -5.0 && dist_i <= 0.0
-        o_i = 3
+        oi_dist = 3
     elseif dist_i > -10.0 && dist_i <= -5.0
-        o_i = 4
-    elseif dist_i > -15.0 && dist_i <= -10.0
-        o_i = 5
-    elseif dist_i > -25.0 && dist_i <= -15.0
-        o_i = 6
-    else
-        o_i = 7
+        oi_dist = 4
+    elseif dist_i > -20.0 && dist_i <= -10.0
+        oi_dist = 5
+    elseif dist_i <= -20.0
+        oi_dist = 6
     end
-    #println(" oi = $o_i")
 
-    #print("dist_j = $dist_j")
-    o_j = 1
+    oi_vel = 1
+    if vel_i > 1.0 && vel_i <= 5.0
+        oi_vel = 2
+    elseif vel_i > 5.0 && vel_i <= 10.0
+        oi_vel = 3
+    elseif vel_i > 10.0 && vel_i <= 15.0
+        oi_vel = 4
+    elseif vel_i > 15.0
+        oi_vel = 5
+    end
+    o_i = (oi_dist, oi_vel)
+
+    oj_dist = 1
     if dist_j <= 5.0 && dist_j > 0.0
-        o_j = 2
+        oj_dist = 2
     elseif dist_j > -5.0 && dist_j <= 0.0
-        o_j = 3
+        oj_dist = 3
     elseif dist_j > -10.0 && dist_j <= -5.0
-        o_j = 4
-    elseif dist_j > -15.0 && dist_j <= -10.0
-        o_j = 5
-    elseif dist_j > -25.0 && dist_j <= -15.0
-        o_j = 6
-    else
-        o_j = 7
+        oj_dist = 4
+    elseif dist_j > -20.0 && dist_j <= -10.0
+        oj_dist = 5
+    elseif dist_j <= -20.0
+        oj_dist = 6
     end
-    #println(" oj = $o_j")
 
+    oj_vel = 1
+    if vel_j > 1.0 && vel_j <= 5.0
+        oj_vel = 2
+    elseif vel_j > 5.0 && vel_j <= 10.0
+        oj_vel = 3
+    elseif vel_j > 10.0 && vel_j <= 15.0
+        oj_vel = 4
+    elseif vel_j > 15.0
+        oj_vel = 5
+    end
+    o_j = (oj_dist, oj_vel)
     return (o_i,o_j)
 end
 
@@ -364,7 +383,7 @@ function generate_or(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int6
     return o,r
 end
 
-function obs_weight(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, sp::IntersectionState2d, o::Tuple{Int64, Int64}, rng::AbstractRNG)
+function obs_weight(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, sp::IntersectionState2d, o::Tuple{Tuple{Int64, Int64},Tuple{Int64, Int64}}, rng::AbstractRNG)
     o_generated = generate_o(p,s,a,sp,rng)
     if o == o_generated
         return 1.0
