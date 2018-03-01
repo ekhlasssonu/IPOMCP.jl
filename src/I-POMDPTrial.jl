@@ -113,13 +113,16 @@ function tester()
     #println(actionCounts)
 end
 
-function test_intersection_problem()
-    num_iter = 100
-    total_planning_time = 0.0
-    total_updating_time = 0.0
+function test_intersection_problem(;num_iter = 100, vel_dev_cost = -5.0, hard_brake_cost = -5.0, collision_cost = -500.0,
+    success_reward = 100.0, l0_max_depth = 5, l1_max_depth = 5, l0_queries = 200, l1_queries = 1000, l0_lambda=0.5, l1_lambda = 5.0, max_steps = 20)
 
-    pomdp_i = IPOMCP.IntersectionPOMDP(agID = 1, decision_timestep = 1.0)
-    pomdp_j = IPOMCP.IntersectionPOMDP(agID = 2, decision_timestep = 1.0)
+
+    pomdp_i = IPOMCP.IntersectionPOMDP(agID = 1, decision_timestep=0.5,
+                        vel_dev_cost=vel_dev_cost,hard_brake_cost=-5.0,
+                        collision_cost=-500.0,success_reward=100.0)
+    pomdp_j = IPOMCP.IntersectionPOMDP(agID = 2, decision_timestep=0.5,
+                        vel_dev_cost=vel_dev_cost,hard_brake_cost=-5.0,
+                        collision_cost=-500.0,success_reward=100.0)
 
     static_dist_frame_sets_i =
         IPOMCP.initialize_static_distribution_frame_sets(pomdp_i)
@@ -130,10 +133,12 @@ function test_intersection_problem()
     intentional_frame_sets_j =
         IPOMCP.initialize_intentional_frame_sets([pomdp_i,pomdp_j])
 
-    for lvl_j in 1:1
+    for lvl_j in 0:1
+        println("************Lvl_j = $lvl_j*****************")
         for lvl_i in 0:lvl_j
+            println("************Lvl_i = $lvl_i*****************")
             ipomdp_i = IPOMCP.IPOMDP_2(1,lvl_i,pomdp_i, static_dist_frame_sets_i, intentional_frame_sets_i)
-            ipomdp_j = IPOMCP.IPOMDP_2(2,1,pomdp_j, static_dist_frame_sets_j, intentional_frame_sets_j)
+            ipomdp_j = IPOMCP.IPOMDP_2(2,lvl_j,pomdp_j, static_dist_frame_sets_j, intentional_frame_sets_j)
             println(ipomdp_i)
             println(ipomdp_j)
 
@@ -144,6 +149,8 @@ function test_intersection_problem()
             num_particles_i = num_nested_particles(ipomdp_i.thisPOMDP, ipomdp_i)
             num_particles_j = num_nested_particles(ipomdp_j.thisPOMDP, ipomdp_j)
 
+            total_planning_time = 0.0
+            total_updating_time = 0.0
             num_success = 0
             num_steps = 0
             avg_rwd_i = 0.0
@@ -155,10 +162,10 @@ function test_intersection_problem()
                 rng = MersenneTwister(itr)
                 rng_i = MersenneTwister(itr*5 + 3)
                 rng_j = MersenneTwister(itr*3 + 5)
-                ipomcp_solver_i = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,tree_queries=200,c=1.0,rng=rng_i),num_particles_i[1],0.5),
-                                        (POMCPSolver(max_depth=5,tree_queries=1000,c=1.0,rng=rng_i),num_particles_i[2],1.0)])
-                ipomcp_solver_j = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,c=1.0,tree_queries=200,rng=rng_j),num_particles_j[1],0.5),
-                                        (POMCPSolver(max_depth=5,tree_queries=1000,c=1.0,rng=rng_j),num_particles_j[2],1.0)])
+                ipomcp_solver_i = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=l0_max_depth,tree_queries=l0_queries,c=1.0,rng=rng_i),num_particles_i[1],l0_lambda),
+                                        (POMCPSolver(max_depth=l1_max_depth,tree_queries=l1_queries,c=1.0,rng=rng_i),num_particles_i[2],l1_lambda)])
+                ipomcp_solver_j = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=l0_max_depth,c=1.0,tree_queries=l0_queries,rng=rng_j),num_particles_j[1],l0_lambda),
+                                        (POMCPSolver(max_depth=l1_max_depth,tree_queries=l1_queries,c=1.0,rng=rng_j),num_particles_j[2],l1_lambda)])
 
                 ipomcp_planner_i = solve(ipomcp_solver_i, ipomdp_i)
                 ipomcp_planner_j = solve(ipomcp_solver_j, ipomdp_j)
@@ -166,7 +173,7 @@ function test_intersection_problem()
                 #println("s = $init_state")
                 #println("computing...")
                 t1 = time_ns()
-                hr = HistoryRecorder(max_steps = 20, rng = rng)
+                hr = HistoryRecorder(max_steps = max_steps, rng = rng)
                 hist_i, hist_j = simulate(hr, ipomdp_i, ipomcp_planner_i, ipomdp_j, ipomcp_planner_j)
                 t2 = time_ns()
                 planningTime = (t2 - t1)/1.0e9
@@ -195,12 +202,13 @@ function test_intersection_problem()
                 if state_hist_i[length(state_hist_i)].terminal == 2
                     num_success += 1;
                     print("Success. ")
+                    num_steps += length(belief_hist_i)-1
                 elseif state_hist_i[length(state_hist_i)].terminal == 1
                     print("Collision. ")
                 else
                     print("Failure. ")
                 end
-                num_steps += length(belief_hist_i)-1
+
                 for step in 1:length(belief_hist_i)-1
                     a_i = VehicleActionSpace_Intersection().actions[action_hist_i[step]]
                     if (a_i.accl <= -4.0)
@@ -231,7 +239,7 @@ function test_intersection_problem()
                 avg_rwd_j += total_rwd_j
             end
             println("Average Planning Time: ", total_planning_time/(num_iter*2))
-            println("Num success = $num_success avg num time steps = ", 1.0 * num_steps/num_iter)
+            println("Num success = $num_success avg num time steps = ", 1.0 * num_steps/num_success)
             println("Avg num hardbrakes_i = ", 1.0*num_hardbrakes_i/num_iter, " Avg num hardbrakes_j = ", 1.0*num_hardbrakes_j/num_iter)
             println("Avg rwd_i = ", avg_rwd_i/num_iter, " Avg rwd_j = ", avg_rwd_j/num_iter)
         end

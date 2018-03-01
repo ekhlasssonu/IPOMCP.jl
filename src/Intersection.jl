@@ -1,5 +1,5 @@
-const CAR_LENGTH = 6.0
-const CAR_WIDTH = 4.0
+const CAR_LENGTH = 5.0
+const CAR_WIDTH = 3.0
 
 type CarPhysicalState2d
     state::NTuple{4,Float64}    #<x,y,θ,v>
@@ -29,8 +29,8 @@ type VehicleActionSpace_Intersection
 end
 
 VehicleActionSpace_Intersection() =
-        VehicleActionSpace_Intersection([CarAction2d(-2.0, 0.0), CarAction2d(0.0, 0.0),
-                CarAction2d(2.0, 0.0), CarAction2d(-6.0, 0.0)])
+        VehicleActionSpace_Intersection([CarAction2d(-2.0, 0.0), CarAction2d(-1.0, 0.0), CarAction2d(0.0, 0.0),
+                CarAction2d(1.0, 0.0), CarAction2d(2.0, 0.0), CarAction2d(-6.0, 0.0)])
 Base.length(asp::VehicleActionSpace_Intersection) = length(asp.actions)
 iterator(actSpace::VehicleActionSpace_Intersection) = 1:length(actSpace.actions)
 dimensions(::VehicleActionSpace_Intersection) = 1
@@ -119,7 +119,7 @@ type IntersectionPOMDP <: POMDP{IntersectionState2d, Tuple{Int64,Int64}, Tuple{T
     agID::Int64
 end
 
-IntersectionPOMDP(;desired_velocity = 10.0, collision_cost = -500.0, success_reward = 100.0, vel_dev_cost = -5.0, hard_brake_cost = -2.0, decision_timestep = 1.0, collision_check_timestep = 0.25, discount_factor = 0.95, agID=1) = IntersectionPOMDP(desired_velocity, collision_cost, success_reward, vel_dev_cost, hard_brake_cost, decision_timestep, collision_check_timestep, discount_factor, agID)
+IntersectionPOMDP(;desired_velocity = 10.0, collision_cost = -1000.0, success_reward = 100.0, vel_dev_cost = -10.0, hard_brake_cost = -5.0, decision_timestep = 1.0, collision_check_timestep = 0.25, discount_factor = 0.95, agID=1) = IntersectionPOMDP(desired_velocity, collision_cost, success_reward, vel_dev_cost, hard_brake_cost, decision_timestep, collision_check_timestep, discount_factor, agID)
 ==(a::IntersectionPOMDP, b::IntersectionPOMDP) = (a.agID == b.agID &&
         a.discount_factor == b.discount_factor && a.desired_velocity == b.desired_velocity &&
         a.collision_cost == b.collision_cost && a.success_reward == b.success_reward &&
@@ -199,8 +199,6 @@ function generate_s(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64
     if s.terminal > 0
         return s
     end
-
-
     s_i = s.agent_states[1]
     s_j = s.agent_states[2]
     if check_collision(s_i, s_j)
@@ -317,7 +315,6 @@ end
 
 function reward(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, rng::AbstractRNG)
     if s.terminal > 0
-
         return 0.0
     end
 
@@ -466,7 +463,7 @@ function num_nested_particles(pomdp::IntersectionPOMDP, ipomdp::IPOMDP_2)
         println("Not an intersection pomdp")
         return num_particles
     end
-    level(ipomdp) == 1 ? num_particles = [100,1000] : num_particles = [30,100,500]
+    level(ipomdp) == 1 ? num_particles = [500,500] : num_particles = [30,100,500]
     return num_particles
 end
 
