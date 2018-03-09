@@ -45,11 +45,8 @@ function tester()
         println("computing...")
         updater_i = updater(ipomcp_planner_i)
         updater_j = updater(ipomcp_planner_j)
-        t1 = time_ns()
         hr = HistoryRecorder(max_steps = 15, rng = rng)
-        hist_i, hist_j = simulate(hr, tiger_ipomdp_i, ipomcp_planner_i, tiger_ipomdp_j, ipomcp_planner_j)
-        t2 = time_ns()
-        planningTime = (t2 - t1)/1.0e9
+        hist_i, hist_j, planningTime = simulate(hr, tiger_ipomdp_i, ipomcp_planner_i, tiger_ipomdp_j, ipomcp_planner_j)
         println("planning time: ",planningTime)
         total_planning_time += planningTime
 
@@ -83,41 +80,14 @@ function tester()
             println()
         end
     end
-    println("Average Planning Time: ", total_planning_time/(num_iter*2))
-    #println("Average Belief Update Time: ", total_updating_time/(num_iter*2))
-    #=actionCounts = zeros(Int64,3)
-    for i in 1:10
-        rng = MersenneTwister(i)
-        ipomcp_solver = IPOMCP.IPOMCPSolver([(POMCPSolver(max_depth=5,tree_queries=100,rng=rng),100,5.0),
-                                (POMCPSolver(max_depth=5,tree_queries=500,rng=rng),300,30.0),
-                                (POMCPSolver(max_depth=10,tree_queries=900, rng=rng),500,9.0)])
-        #println("IPOMDP Solver\n", ipomcp_solver)
-
-        nested_init_bel = IPOMCP.rand(rng, d, [100,200])
-        #print(nested_init_bel,0)
-        print(get_physical_state_probability(nested_init_bel))
-        print("\n\t")
-        #up = IPOMCP.SimpleInteractiveParticleFilter(tiger_ipomdp,LowVarianceResampler(ipomcp_solver.solvers[2][2]),rng,ipomcp_solver)
-
-        #nested_next_bel = IPOMCP.update(up, nested_init_bel, 2, (1,2))
-        #print(get_physical_state_probability(nested_next_bel))
-        #println("\n\n\n")
-
-        ipomcp_planner = solve(ipomcp_solver, tiger_ipomdp)
-
-        a = IPOMCP.action(ipomcp_planner,nested_init_bel)
-        println("Action = $a")
-        actionCounts[a] += 1
-    end=#
-
-    #println(actionCounts)
+    println("Average Planning Time: ", total_planning_time/(num_iter))
 end
 
-function test_intersection_problem(;num_iter = 100, vel_dev_cost = -5.0, hard_brake_cost = -5.0, collision_cost = -500.0,
+function test_intersection_problem(;num_iter = 100, decision_timestep=0.5, vel_dev_cost = -5.0, hard_brake_cost = -5.0, collision_cost = -500.0,
     success_reward = 100.0, l0_max_depth = 5, l1_max_depth = 5, l0_queries = 200, l1_queries = 1000, l0_lambda=0.5, l1_lambda = 5.0, max_steps = 20)
 
 
-    pomdp_i = IPOMCP.IntersectionPOMDP(agID = 1, decision_timestep=0.5,
+    pomdp_i = IPOMCP.IntersectionPOMDP(agID = 1, decision_timestep=decision_timestep,
                         vel_dev_cost=vel_dev_cost,hard_brake_cost=-5.0,
                         collision_cost=-500.0,success_reward=100.0)
     pomdp_j = IPOMCP.IntersectionPOMDP(agID = 2, decision_timestep=0.5,
@@ -134,8 +104,8 @@ function test_intersection_problem(;num_iter = 100, vel_dev_cost = -5.0, hard_br
         IPOMCP.initialize_intentional_frame_sets([pomdp_i,pomdp_j])
 
     for lvl_j in 0:1
-        println("************Lvl_j = $lvl_j*****************")
-        for lvl_i in 0:lvl_j
+        for lvl_i in 0:1
+            println("************Lvl_j = $lvl_j*****************")
             println("************Lvl_i = $lvl_i*****************")
             ipomdp_i = IPOMCP.IPOMDP_2(1,lvl_i,pomdp_i, static_dist_frame_sets_i, intentional_frame_sets_i)
             ipomdp_j = IPOMCP.IPOMDP_2(2,lvl_j,pomdp_j, static_dist_frame_sets_j, intentional_frame_sets_j)
@@ -158,7 +128,7 @@ function test_intersection_problem(;num_iter = 100, vel_dev_cost = -5.0, hard_br
             num_hardbrakes_i = 0
             num_hardbrakes_j = 0
             for itr in 1:num_iter
-                println("************Iteration $itr**************")
+                print("\r************Iteration $itr**************")
                 rng = MersenneTwister(itr)
                 rng_i = MersenneTwister(itr*5 + 3)
                 rng_j = MersenneTwister(itr*3 + 5)
@@ -172,11 +142,8 @@ function test_intersection_problem(;num_iter = 100, vel_dev_cost = -5.0, hard_br
                 #init_state = rand(rng, initial_state_distribution(ipomdp_i.thisPOMDP))
                 #println("s = $init_state")
                 #println("computing...")
-                t1 = time_ns()
                 hr = HistoryRecorder(max_steps = max_steps, rng = rng)
-                hist_i, hist_j = simulate(hr, ipomdp_i, ipomcp_planner_i, ipomdp_j, ipomcp_planner_j)
-                t2 = time_ns()
-                planningTime = (t2 - t1)/1.0e9
+                hist_i, hist_j, planningTime = simulate(hr, ipomdp_i, ipomcp_planner_i, ipomdp_j, ipomcp_planner_j)
                 #println("planning time: ",planningTime)
                 total_planning_time += planningTime
 
@@ -201,12 +168,12 @@ function test_intersection_problem(;num_iter = 100, vel_dev_cost = -5.0, hard_br
 
                 if state_hist_i[length(state_hist_i)].terminal == 2
                     num_success += 1;
-                    print("Success. ")
+                    #print("Success. ")
                     num_steps += length(belief_hist_i)-1
                 elseif state_hist_i[length(state_hist_i)].terminal == 1
-                    print("Collision. ")
+                    println("\nIteration $itr Collision. ")
                 else
-                    print("Failure. ")
+                    println("\nIteration $itr Failure. ")
                 end
 
                 for step in 1:length(belief_hist_i)-1
@@ -234,11 +201,15 @@ function test_intersection_problem(;num_iter = 100, vel_dev_cost = -5.0, hard_br
                     total_rwd_j += rwd_hist_j[step]
                     #println()
                 end
-                println("Cum_rwd_i = $total_rwd_i, Cum_rwd_j = $total_rwd_j ")
+                if state_hist_i[length(state_hist_i)].terminal != 2
+                    println("Step: ", length(state_hist_i))
+                    println("State: ",state_hist_i[length(state_hist_i)])
+                end
+                #println("Cum_rwd_i = $total_rwd_i, Cum_rwd_j = $total_rwd_j ")
                 avg_rwd_i += total_rwd_i
                 avg_rwd_j += total_rwd_j
             end
-            println("Average Planning Time: ", total_planning_time/(num_iter*2))
+            println("Average Planning Time: ", total_planning_time/(num_iter))
             println("Num success = $num_success avg num time steps = ", 1.0 * num_steps/num_success)
             println("Avg num hardbrakes_i = ", 1.0*num_hardbrakes_i/num_iter, " Avg num hardbrakes_j = ", 1.0*num_hardbrakes_j/num_iter)
             println("Avg rwd_i = ", avg_rwd_i/num_iter, " Avg rwd_j = ", avg_rwd_j/num_iter)

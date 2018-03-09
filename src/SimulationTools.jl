@@ -65,13 +65,17 @@ function simulate(sim::HistoryRecorder, ipomdp_i::IPOMDP_2, policy_i::Policy, bu
 
     disc = 1.0
     step = 1
+    i_planning_time = 0.0
     try
         while step <= max_steps
             if isterminal(ipomdp_i.thisPOMDP, sh[step])
                 break
             end
             #println("Step: ",step)
+            t1 = time_ns()
             a_i = action(policy_i, b_ih[step])
+            t2 = time_ns()
+            i_planning_time += (t2 - t1)/1.0e9
             #println("Actions: ",a_i)
             a_j = action(policy_j, b_jh[step])
             #println("Actions: ",a_i," ", a_j)
@@ -117,7 +121,7 @@ function simulate(sim::HistoryRecorder, ipomdp_i::IPOMDP_2, policy_i::Policy, bu
     end
     history_i = POMDPHistory(sh, a_ih, o_ih, b_ih, r_ih, discount(ipomdp_i), exception, backtrace)
     history_j = POMDPHistory(sh, a_jh, o_jh, b_jh, r_jh, discount(ipomdp_j), exception, backtrace)
-    return history_i,history_j
+    return history_i,history_j, i_planning_time
 end
 
 #=function reset_belief{S}(b_i::AbstractParticleInteractiveBelief, ipomdp_i::IPOMDP_2, sp::S, proportion::Float64)

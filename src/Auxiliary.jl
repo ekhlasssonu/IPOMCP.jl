@@ -1,8 +1,4 @@
 function Base.rand{A}(x::Dict{A,Float64}, rng::AbstractRNG = Base.GLOBAL_RNG)
-    sum = 0.0
-    for prob in values(x)
-        sum += prob
-    end
     rnd = rand(rng) * sum
     sum = 0.0
     for (k,v) in x
@@ -12,6 +8,17 @@ function Base.rand{A}(x::Dict{A,Float64}, rng::AbstractRNG = Base.GLOBAL_RNG)
         end
     end
     return 0.0
+end
+function Base.rand{A}(x::Vector{Tuple{A,Float64}}, rng::AbstractRNG = Base.GLOBAL_RNG)
+    rnd = rand(rng) * sum
+    sum = 0.0
+    for t in x
+        sum += t[2]
+        if sum >= rnd
+            return t[1]
+        end
+    end
+    return x[length(x)][1]
 end
 
 function quantal_response_probability{A}(val::Dict{A,Float64}, lambda::Float64=Inf)

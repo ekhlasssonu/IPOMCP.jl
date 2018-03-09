@@ -29,8 +29,8 @@ type VehicleActionSpace_Intersection
 end
 
 VehicleActionSpace_Intersection() =
-        VehicleActionSpace_Intersection([CarAction2d(-2.0, 0.0), CarAction2d(-1.0, 0.0), CarAction2d(0.0, 0.0),
-                CarAction2d(1.0, 0.0), CarAction2d(2.0, 0.0), CarAction2d(-6.0, 0.0)])
+        VehicleActionSpace_Intersection([CarAction2d(-3.0, 0.0), CarAction2d(-2.0, 0.0), CarAction2d(-1.0, 0.0), CarAction2d(0.0, 0.0),
+                CarAction2d(1.0, 0.0), CarAction2d(2.0, 0.0), CarAction2d(3.0, 0.0), CarAction2d(-6.0, 0.0)])
 Base.length(asp::VehicleActionSpace_Intersection) = length(asp.actions)
 iterator(actSpace::VehicleActionSpace_Intersection) = 1:length(actSpace.actions)
 dimensions(::VehicleActionSpace_Intersection) = 1
@@ -70,21 +70,20 @@ end
 
 type IntersectionState2d
     terminal::Int64
-    success::Tuple{Bool, Bool}
     agent_states::Tuple{CarPhysicalState2d, CarPhysicalState2d}
 end
 
 function IntersectionState2d(ag_st::Tuple{CarPhysicalState2d, CarPhysicalState2d})
-    return IntersectionState2d(0,(false, false),ag_st)
+    return IntersectionState2d(0,ag_st)
 end
-==(a::IntersectionState2d,b::IntersectionState2d) = a.terminal == b.terminal && a.success == b.success && a.agent_states == b.agent_states
+==(a::IntersectionState2d,b::IntersectionState2d) = a.terminal == b.terminal && a.agent_states == b.agent_states
 function Base.hash(x::IntersectionState2d, h::UInt64=zero(UInt64))
     #print(".")
-    return hash((x.terminal,x.success, x.agent_states),h)
+    return hash((x.terminal,x.agent_states),h)
 end
 
 function print(s::IntersectionState2d)
-    print("[",s.terminal,", (", s.success[1],", ",s.success[2],"), ")
+    print("[",s.terminal,", ")
     print(s.agent_states[1])
     print(", ")
     print(s.agent_states[2])
@@ -136,7 +135,7 @@ function isterminal(p::IntersectionPOMDP, st::IntersectionState2d)
     return false
 end
 
-n_actions(p::IntersectionPOMDP) = length(actions(p))
+n_actions(p::IntersectionPOMDP) = (length(VehicleActionSpace_Intersection().actions)^2)
 function actions(::IntersectionPOMDP)
     caracts = VehicleActionSpace_Intersection()
     joint_actions = sizehint!(Vector{Tuple{Int64, Int64}}(), length(caracts.actions)^2)
@@ -203,11 +202,11 @@ function generate_s(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64
     s_j = s.agent_states[2]
     if check_collision(s_i, s_j)
         #println("\t\tCollision")
-        return IntersectionState2d(1, (false, false), (s_i,s_j))
+        return IntersectionState2d(1, (s_i,s_j))
     end
     if s_i.state[1] >= 5.0 && s_j.state[2] >= 5.0
         #println("\t\tSuccess")
-        return IntersectionState2d(2, (true, true), (s_i, s_j))
+        return IntersectionState2d(2, (s_i, s_j))
     end
 
     caracts = VehicleActionSpace_Intersection().actions
@@ -231,33 +230,26 @@ function generate_s(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64
         action_time_remain -= action_duration
 
         if check_collision(sp_i, sp_j)
-            return IntersectionState2d(0, (false, false), (sp_i,sp_j))
+            return IntersectionState2d(1,  (sp_i,sp_j))
         end
     end
     #println("s_i = ", s_i.state, " sp_i = ",sp_i.state)
     #println("s_j = ", s_j.state, " sp_j = ",sp_j.state)
     #NOTE: Initial state
-    local success_state::Tuple{Bool,Bool}
-    if s_i.state[1] >= 5.0 && s_j.state[2] < 5.0
-        success_state = (true, false)
-    elseif s_i.state[1] < 5.0 && s_j.state[2] >= 5.0
-        success_state = (false, true)
-    elseif s_i.state[1] >= 5.0 && s_j.state[2] >= 5.0
-        success_state = (true, true)
-    else
-        success_state = (false, false)
+    if sp_i.state[1] >= 5.0 && sp_j.state[2] >= 5.0
+        return IntersectionState2d(2, (sp_i, sp_j))
     end
-    return IntersectionState2d(0, success_state, (sp_i, sp_j))
+    return IntersectionState2d(0, (sp_i, sp_j))
 end
 
 function generate_o(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, sp::IntersectionState2d, rng::AbstractRNG)
-    s_i = sp.agent_states[1]
-    s_j = sp.agent_states[2]
+    sp_i = sp.agent_states[1]
+    sp_j = sp.agent_states[2]
 
-    dist_i = s_i.state[1]
-    vel_i = s_i.state[4]
-    dist_j = s_j.state[2]
-    vel_j = s_j.state[4]
+    dist_i = sp_i.state[1]
+    vel_i = sp_i.state[4]
+    dist_j = sp_j.state[2]
+    vel_j = sp_j.state[4]
     desired_velocity = p.desired_velocity
     time_step = p.decision_timestep
 
@@ -313,14 +305,16 @@ function generate_o(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64
     return (o_i,o_j)
 end
 
-function reward(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, rng::AbstractRNG)
+function reward(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, sp::IntersectionState2d, rng::AbstractRNG)
     if s.terminal > 0
         return 0.0
     end
 
     s_i = s.agent_states[1]
     s_j = s.agent_states[2]
-    if check_collision(s_i, s_j)
+    sp_i = sp.agent_states[1]
+    sp_j = sp.agent_states[2]
+    if check_collision(sp_i, sp_j)
         return p.collision_cost
     end
     caracts = VehicleActionSpace_Intersection().actions
@@ -331,20 +325,20 @@ function reward(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int
     #Agent-wise reward
     agID = p.agID
     if agID == 1
-        if s_i.state[1] >= 5.0 && !s.success[1]
+        if sp_i.state[1] >= 5.0 && s_i.state[1] < 5.0
             reward += p.success_reward
         else
-            reward += abs(s_i.state[4] - p.desired_velocity) * p.vel_dev_cost
-            if a_i.accl <= -4.0
+            reward += abs(sp_i.state[4] - p.desired_velocity) * p.vel_dev_cost * p.decision_timestep
+            if a_i.accl <= -6.0
                 reward += p.hard_brake_cost
             end
         end
     else
-        if s_j.state[2] >= 5.0 && !s.success[2]
+        if sp_j.state[2] >= 5.0 && s_j.state[2] < 5.0
             reward += p.success_reward
         else
-            reward += abs(s_j.state[4] - p.desired_velocity) * p.vel_dev_cost
-            if a_j.accl <= -4.0
+            reward += abs(sp_j.state[4] - p.desired_velocity) * p.vel_dev_cost * p.decision_timestep
+            if a_j.accl <= -6.0
                 reward += p.hard_brake_cost
             end
         end
@@ -357,13 +351,13 @@ function generate_sor(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int
     #println("\ta1 = $(a[1]), a2 = $(a[2])")
     sp = generate_s(p,s,a,rng)
     o = generate_o(p,s,a,sp,rng)
-    r = reward(p,s,a,rng)
+    r = reward(p,s,a,sp,rng)
     return sp,o,r
 end
 
 function generate_sr(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, rng::AbstractRNG)
     sp = generate_s(p, s, a, rng)
-    r = reward(p, s, a, rng)
+    r = reward(p, s, a, sp, rng)
     return sp,r
 end
 
@@ -375,7 +369,7 @@ end
 
 function generate_or(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, sp::IntersectionState2d, rng::AbstractRNG)
     o = generate_o(p,s,a,sp,rng)
-    r = reward(p,s,a,rng)
+    r = reward(p,s,a,sp,rng)
 
     return o,r
 end
@@ -390,15 +384,17 @@ end
 
 function initialize_static_distribution_frame_sets(::IntersectionPOMDP)
     #Starting with constant velocity model
-    st_prob_dist_1 = Static_Distribution_Frame(1, Dict(1 => 0.0, 2 => 1.0, 3 => 0.0))
-    st_prob_dist_2 = Static_Distribution_Frame(2, Dict(1 => 0.0, 2 => 1.0, 3 => 0.0))
+    st_prob_dist_1 = Static_Distribution_Frame(1, Dict(1 => 0.1, 2 => 0.1, 3 => 0.1, 4 => 0.4,
+                                                        5 => 0.1, 6 => 0.1, 7 => 0.1, 8 => 0.0))
+    st_prob_dist_2 = Static_Distribution_Frame(2, Dict(1 => 0.1, 2 => 0.1, 3 => 0.1, 4 => 0.4,
+                                                        5 => 0.1, 6 => 0.1, 7 => 0.1, 8 => 0.0))
     intersection_sf_1 = Vector{Subintentional_Frame}(1)
     intersection_sf_1[1] = st_prob_dist_1
     intersection_sf_2 = Vector{Subintentional_Frame}(1)
     intersection_sf_2[1] = st_prob_dist_2
     #push!(tiger_sm,st_prob_dist)
     agent_SF_sets = Vector{Vector{Subintentional_Frame}}(2)
-    fill!(agent_SF_sets, Vector{Subintentional_Frame}())
+    #fill!(agent_SF_sets, Vector{Subintentional_Frame}())
     agent_SF_sets[1] = intersection_sf_1
     agent_SF_sets[2] = intersection_sf_2
     agent_SF_sets
@@ -416,14 +412,14 @@ function initialize_intentional_frame_sets(p::Vector{IntersectionPOMDP})
     agent_frame_sets = [ag_intentional_frame_set_1, ag_intentional_frame_set_2]
 end
 
-function initial_intersection_ipomdp(lvl::Int64)   #Called for agent 1 only. the others are handled internally
+#=function initial_intersection_ipomdp(lvl::Int64)   #Called for agent 1 only. the others are handled internally
     lvl_l_intersection_pomdp = IntersectionPOMDP()
 
     intersection_static_dist_frame_sets = initialize_static_distribution_frame_sets(lvl_l_intersection_pomdp)
     intersection_intentional_frame_sets = initialize_intentional_frame_sets(lvl_l_intersection_pomdp)
 
     return IPOMDP_2(1,lvl,lvl_l_intersection_pomdp, intersection_static_dist_frame_sets, intersection_intentional_frame_sets)
-end
+end=#
 
 type Intersection_Frame_Distribution
     ipomdp::IPOMDP_2
@@ -463,7 +459,7 @@ function num_nested_particles(pomdp::IntersectionPOMDP, ipomdp::IPOMDP_2)
         println("Not an intersection pomdp")
         return num_particles
     end
-    level(ipomdp) == 1 ? num_particles = [500,500] : num_particles = [30,100,500]
+    level(ipomdp) == 1 ? num_particles = [100,500] : num_particles = [30,100,500]
     return num_particles
 end
 

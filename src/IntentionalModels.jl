@@ -29,15 +29,6 @@ function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, aj::OA, sp::S,
         i_ID = 2
     end
 
-    #=println("\t\tUpdate Model: for agent $j_ID")
-    println("\t\ts  = ", s)
-    if j_ID == 1
-        println("\t\ta = $aj,$a")
-    else
-        println("\t\ta = $a,$aj")
-    end
-    println("\t\tsp = ", sp)=#
-
     i_ID == 1 ? jnt_act = (a,aj) : jnt_act = (aj,a)
 
     ipf = SimpleInteractiveParticleFilter(frame, LowVarianceResampler(n), rng, solver)
