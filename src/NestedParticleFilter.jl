@@ -76,36 +76,14 @@ function update{IS,A,O}(up::SimpleInteractiveParticleFilter, bel::InteractivePar
     sizehint!(wm, n_particles(bel)*n_aj*50)
     all_terminal = true
 
-    #for i in 1:1-level(ipomdp)
-    #    print("\t")
-    #end
-
-    #println("Updating : agent = $(agentID(ipomdp)) level = $(level(ipomdp)) a = $a, o = $o")
-    #print(bel,1-level(ipomdp))
-    #println()
-
-
     for i in 1:n_particles(bel)
         is = ps[i]
         s = is.env_state
         m_j = is.model
-        #local aj::oaction_type(up.ipomdp)
-        #for i in 1:2-level(ipomdp)
-        #    print("\t")
-        #end
-        #println("Updating State: ", s, " model: ",m_j)
 
         if !isterminal(up.ipomdp.thisPOMDP, s)
-            #for i in 1:2-level(ipomdp)
-            #    print("\t")
-            #end
-            #println("Not terminal")
             all_terminal = false
             if typeof(m_j) <: Intentional_Model
-                #for i in 1:2-level(ipomdp)
-                #    print("\t")
-                #end
-                #println("Intentional model")
                 frame_j = m_j.frame
                 b_j = m_j.belief
                 level_j = level(frame_j)
@@ -114,41 +92,29 @@ function update{IS,A,O}(up::SimpleInteractiveParticleFilter, bel::InteractivePar
                     b_j.act_prob = Nullable(actionProb(j_planner, b_j))
                 end
                 aj_prob = get(b_j.act_prob)
-                #aj = action(j_planner, b_j)
             else
-                #for i in 1:2-level(ipomdp)
-                #    print("\t")
-                #end
-                #println("subintentional model")
                 frame_j = m_j.frame
                 hist_j = m_j.history
                 j_solver = solver(frame_j, rng=rng) #NOTE: Other Subintentional models should implement the same function calls
                 j_planner = solve(j_solver, frame_j)
                 aj_prob = actionProb(j_planner, hist_j)
-                #aj = action(j_planner, hist_j)
             end
 
             for (aj,p_aj) in aj_prob
                 if p_aj < 1e-5
                     continue
                 end
-                #for i in 1:3-level(ipomdp)
-                #    print("\t")
-                #end
-                #print("a = $a, aj = $aj, p_aj = $p_aj")
                 pr_o = 0.0
                 local sp::typeof(s)
                 local r::Float64
-                #while pr_o == 0.0
-                    sp,r = generate_sr(up.ipomdp, s, a, aj, rng)
-                    #print(" obs_weight(agent $(agentID(up.ipomdp)) level $(level(up.ipomdp)), state = $sp, o = $o")
-                    pr_o = obs_weight(up.ipomdp, s, a, aj, sp, o, rng)
-                    #println(" pr_o = $pr_o")
-                #end
+
+                sp,r = generate_sr(up.ipomdp, s, a, aj, m_j.frame, rng)
+                pr_o = obs_weight(up.ipomdp, s, a, aj, sp, o, m_j.frame, rng)
+
                 if pr_o < 1e-5
                     continue
                 end
-                updated_model_probs = update_model(m_j, s, a, aj, sp, rng, up.solver)
+                updated_model_probs = update_model(ipomdp, m_j, s, a, aj, sp, rng, up.solver)
                 #modelp = rand(updated_model_probs,rng)
                 for (modelp, oj_prob) in updated_model_probs
                     #println(" oj_prob = $oj_prob")
@@ -166,7 +132,6 @@ function update{IS,A,O}(up::SimpleInteractiveParticleFilter, bel::InteractivePar
         #error("Particle filter update error: all states in the particle collection were terminal.")
         return bel
     end
-    #println("Length of pm = ", length(pm))
     #Particle replenishment
     if !isnull(replenish_s)
         #println("Not null")

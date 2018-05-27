@@ -21,13 +21,6 @@ function updater(p::IPOMCPPlanner)
     ipomdp = p.problem
     pomcpsolver = getsolver(p.solver,ipomdp.level)
     n_particle = n_particles(p.solver,ipomdp.level)
-    #=P = typeof(p.problem)
-    S = state_type(P)
-    A = action_type(P)
-    O = obs_type(P)
-    if !@implemented ParticleFilters.obs_weight(::P, ::S, ::A, ::S, ::O)
-        return UnweightedParticleFilter(p.problem, p.solver.tree_queries, rng=p.rng)
-    end=#
     return SimpleInteractiveParticleFilter(ipomdp, LowVarianceResampler(n_particle), p.rng, p.solver)	# This may need to change. Because IPF needed
 end
 
@@ -190,7 +183,7 @@ function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPO
     ha = rand(p.rng, best_nodes)									#random best node index
     a = t.a_labels[ha]												#action label
 
-    sp, o, r = generate_sor(p.problem, s, a, aj, p.rng)
+    sp, o, r = generate_sor(p.problem, s, a, aj, mj.frame, p.rng)
 
     hao = get(t.o_lookup, (ha, o), 0)
     if hao == 0
@@ -202,7 +195,7 @@ function simulate(p::IPOMCPPlanner, is::AbstractInteractiveState, hnode::BasicPO
                            steps-1)
         R = r + discount(p.problem)*v
     else
-        mjp = rand(update_model(mj, s, a, aj, sp, p.rng,p.solver), p.rng)
+        mjp = rand(update_model(p.problem, mj, s, a, aj, sp, p.rng,p.solver), p.rng)
         isp = InteractiveState(sp, mjp)
         R = r + discount(p.problem)*simulate(p, isp, BasicPOMCP.POMCPObsNode(t, hao), steps-1)
     end

@@ -1,8 +1,12 @@
 function Base.rand{A}(x::Dict{A,Float64}, rng::AbstractRNG = Base.GLOBAL_RNG)
-    rnd = rand(rng) * sum
+    rnd = rand(rng)
+    norm_factor = 0.0
+    for (k,v) in x
+        norm_factor += v
+    end
     sum = 0.0
     for (k,v) in x
-        sum += v
+        sum += (v/norm_factor)
         if sum >= rnd
             return k
         end
@@ -10,7 +14,7 @@ function Base.rand{A}(x::Dict{A,Float64}, rng::AbstractRNG = Base.GLOBAL_RNG)
     return 0.0
 end
 function Base.rand{A}(x::Vector{Tuple{A,Float64}}, rng::AbstractRNG = Base.GLOBAL_RNG)
-    rnd = rand(rng) * sum
+    rnd = rand(rng)
     sum = 0.0
     for t in x
         sum += t[2]

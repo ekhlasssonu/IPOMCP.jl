@@ -174,8 +174,8 @@ type IntersectionDistribution
 end
 
 function initial_state_distribution(p::IntersectionPOMDP)
-    s1 = CarPhysicalState2d((-50.0, 0.0, 0.0, 10.0))
-    s2 = CarPhysicalState2d((0.0, -50.0, pi/2, 10.0))
+    s1 = CarPhysicalState2d((-30.0, 0.0, 0.0, 10.0))
+    s2 = CarPhysicalState2d((0.0, -30.0, pi/2, 10.0))
     σ1 = (0.0,0.0,0.0,0.0)
     σ2 = (0.0,0.0,0.0,0.0)
     return IntersectionDistribution(s1, s2, σ1, σ2)
@@ -194,7 +194,8 @@ function rand(rng, dist::IntersectionDistribution)
 end
 
 
-function generate_s(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, rng::AbstractRNG)
+function generate_s(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64},
+                        rng::AbstractRNG, frame_j::Nullable = Nullable())
     if s.terminal > 0
         return s
     end
@@ -242,7 +243,8 @@ function generate_s(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64
     return IntersectionState2d(0, (sp_i, sp_j))
 end
 
-function generate_o(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, sp::IntersectionState2d, rng::AbstractRNG)
+function generate_o(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, sp::IntersectionState2d,
+                    rng::AbstractRNG, frame_j::Nullable = Nullable())
     sp_i = sp.agent_states[1]
     sp_j = sp.agent_states[2]
 
@@ -305,7 +307,8 @@ function generate_o(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64
     return (o_i,o_j)
 end
 
-function reward(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, sp::IntersectionState2d, rng::AbstractRNG)
+function reward(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, sp::IntersectionState2d,
+                    rng::AbstractRNG, frame_j::Nullable = Nullable())
     if s.terminal > 0
         return 0.0
     end
@@ -347,35 +350,41 @@ function reward(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int
     return reward
 end
 
-function generate_sor(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, rng::AbstractRNG)
+function generate_sor(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64},
+                        rng::AbstractRNG, frame_j::Nullable = Nullable())
     #println("\ta1 = $(a[1]), a2 = $(a[2])")
-    sp = generate_s(p,s,a,rng)
-    o = generate_o(p,s,a,sp,rng)
-    r = reward(p,s,a,sp,rng)
+    sp = generate_s(p,s,a,rng, frame_j)
+    o = generate_o(p,s,a,sp,rng, frame_j)
+    r = reward(p,s,a,sp,rng, frame_j)
     return sp,o,r
 end
 
-function generate_sr(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, rng::AbstractRNG)
-    sp = generate_s(p, s, a, rng)
-    r = reward(p, s, a, sp, rng)
+function generate_sr(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64},
+                        rng::AbstractRNG, frame_j::Nullable = Nullable())
+    sp = generate_s(p, s, a, rng, frame_j)
+    r = reward(p, s, a, sp, rng,frame_j)
     return sp,r
 end
 
-function generate_so(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, rng::AbstractRNG)
-    sp = generate_s(p, s, a, rng)
-    o = generate_o(p, s, a, sp, rng)
+function generate_so(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64},
+                        rng::AbstractRNG, frame_j::Nullable = Nullable())
+    sp = generate_s(p, s, a, rng, frame_j)
+    o = generate_o(p, s, a, sp, rng, frame_j)
     return sp,o
 end
 
-function generate_or(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, sp::IntersectionState2d, rng::AbstractRNG)
-    o = generate_o(p,s,a,sp,rng)
-    r = reward(p,s,a,sp,rng)
+function generate_or(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64},
+                        sp::IntersectionState2d, rng::AbstractRNG, frame_j::Nullable = Nullable())
+    o = generate_o(p,s,a,sp,rng, frame_j)
+    r = reward(p,s,a,sp,rng, frame_j)
 
     return o,r
 end
 
-function obs_weight(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64}, sp::IntersectionState2d, o::Tuple{Tuple{Int64, Int64},Tuple{Int64, Int64}}, rng::AbstractRNG)
-    o_generated = generate_o(p,s,a,sp,rng)
+function obs_weight(p::IntersectionPOMDP, s::IntersectionState2d, a::Tuple{Int64,Int64},
+                    sp::IntersectionState2d, o::Tuple{Tuple{Int64, Int64},Tuple{Int64, Int64}},
+                    rng::AbstractRNG, frame_j::Nullable = Nullable())
+    o_generated = generate_o(p,s,a,sp,rng,frame_j)
     if o == o_generated
         return 1.0
     end
@@ -411,15 +420,6 @@ function initialize_intentional_frame_sets(p::Vector{IntersectionPOMDP})
 
     agent_frame_sets = [ag_intentional_frame_set_1, ag_intentional_frame_set_2]
 end
-
-#=function initial_intersection_ipomdp(lvl::Int64)   #Called for agent 1 only. the others are handled internally
-    lvl_l_intersection_pomdp = IntersectionPOMDP()
-
-    intersection_static_dist_frame_sets = initialize_static_distribution_frame_sets(lvl_l_intersection_pomdp)
-    intersection_intentional_frame_sets = initialize_intentional_frame_sets(lvl_l_intersection_pomdp)
-
-    return IPOMDP_2(1,lvl,lvl_l_intersection_pomdp, intersection_static_dist_frame_sets, intersection_intentional_frame_sets)
-end=#
 
 type Intersection_Frame_Distribution
     ipomdp::IPOMDP_2
@@ -463,7 +463,7 @@ function num_nested_particles(pomdp::IntersectionPOMDP, ipomdp::IPOMDP_2)
     return num_particles
 end
 
-function rand(rng, dist::Intersection_Frame_Distribution, n_particles::Vector{Int64})
+function rand(rng::AbstractRNG, dist::Intersection_Frame_Distribution, n_particles::Vector{Int64})
     ipomdp = dist.ipomdp
     lvl = level(ipomdp)
     n_particle = n_particles[lvl+1]

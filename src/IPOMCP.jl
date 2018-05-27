@@ -16,7 +16,7 @@ using CPUTime
 using Colors
 
 
-export tester, test_intersection_problem
+export tester, test_intersection_problem, test_pedestrian_problem
 
 include("AbstractTypeDeclarations.jl")
 include("Auxiliary.jl")
@@ -25,6 +25,7 @@ include("IntentionalModels.jl")
 include("I-POMDP.jl")
 include("MultiagentTiger.jl")
 include("Intersection.jl")
+include("PedestrianCrossing.jl")
 include("InteractiveStates.jl")
 include("IPOMCPSolver.jl")
 include("IPOMCPPlanner.jl")

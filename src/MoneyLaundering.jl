@@ -134,7 +134,8 @@ function rand(rng, dist::MLDistribution)
     return s
 end
 
-function generate_s(p::Union{ML_Red_Team_Problem, ML_Blue_Team_Problem}, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, rng::AbstractRNG)
+function generate_s(p::Union{ML_Red_Team_Problem, ML_Blue_Team_Problem}, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64},
+                        rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1
@@ -267,7 +268,8 @@ function generate_s(p::Union{ML_Red_Team_Problem, ML_Blue_Team_Problem}, s::Tupl
     return (sp_red,sp_blue)
 end
 
-function generate_o(p::ML_Red_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, sp::Tuple{Int64,Int64}, rng::AbstractRNG)
+function generate_o(p::ML_Red_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, sp::Tuple{Int64,Int64},
+                    rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1
@@ -308,7 +310,8 @@ function generate_o(p::ML_Red_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int6
     return RO_No_Observation
 end
 
-function generate_o(p::ML_Blue_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, sp::Tuple{Int64,Int64}, rng::AbstractRNG)
+function generate_o(p::ML_Blue_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, sp::Tuple{Int64,Int64},
+                    rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1
@@ -351,7 +354,8 @@ function generate_o(p::ML_Blue_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int
     return BO_No_Observation
 end
 
-function reward(p::ML_Red_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, rng::AbstractRNG)
+function reward(p::ML_Red_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64},
+                rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1
@@ -392,7 +396,8 @@ function reward(p::ML_Red_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,In
     return p.r_other
 end
 
-function reward(p::ML_Blue_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, rng::AbstractRNG)
+function reward(p::ML_Blue_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64},
+                rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1
@@ -431,14 +436,16 @@ function reward(p::ML_Blue_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,I
 
     return p.r_other
 end
-function generate_or(p::Union{ML_Red_Team_Problem, ML_Blue_Team_Problem}, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, sp::Tuple{Int64,Int64}, rng::AbstractRNG)
-    o = generate_o(p,s,a,sp,rng)
-    r = reward(p,s,a,rng)
+function generate_or(p::Union{ML_Red_Team_Problem, ML_Blue_Team_Problem}, s::Tuple{Int64,Int64},
+                        a::Tuple{Int64,Int64}, sp::Tuple{Int64,Int64}, rng::AbstractRNG, frame_j::Nullable = Nullable())
+    o = generate_o(p,s,a,sp,rng, frame_j)
+    r = reward(p,s,a,rng, frame_j)
 
     return o,r
 end
 
-function obs_weight(p::ML_Red_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, sp::Tuple{Int64,Int64}, o::Int64, rng::AbstractRNG)
+function obs_weight(p::ML_Red_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64},
+                    sp::Tuple{Int64,Int64}, o::Int64, rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1
@@ -477,7 +484,8 @@ function obs_weight(p::ML_Red_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int6
 
 end
 
-function obs_weight(p::ML_Blue_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, sp::Tuple{Int64,Int64}, o::Int64, rng::AbstractRNG)
+function obs_weight(p::ML_Blue_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64},
+                    sp::Tuple{Int64,Int64}, o::Int64, rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1
@@ -521,15 +529,17 @@ function obs_weight(p::ML_Blue_Team_Problem, s::Tuple{Int64,Int64}, a::Tuple{Int
     return 0.0
 end
 
-function generate_sor(p::Union{ML_Red_Team_Problem, ML_Blue_Team_Problem}, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, rng::AbstractRNG)
-    sp = generate_s(p, s, a, rng)
-    o = generate_o(p, s, a, sp, rng)
-    r = reward(p,s,a,rng)
+function generate_sor(p::Union{ML_Red_Team_Problem, ML_Blue_Team_Problem}, s::Tuple{Int64,Int64},
+                        a::Tuple{Int64,Int64}, rng::AbstractRNG, frame_j::Nullable = Nullable())
+    sp = generate_s(p, s, a, rng, frame_j)
+    o = generate_o(p, s, a, sp, rng, frame_j)
+    r = reward(p,s,a,rng, frame_j)
     return sp,o,r
 end
 
-function generate_so(p::Union{ML_Red_Team_Problem, ML_Blue_Team_Problem}, s::Tuple{Int64,Int64}, a::Tuple{Int64,Int64}, rng::AbstractRNG)
-    sp = generate_s(p, s, a, rng)
-    o = generate_o(p, s, a, sp, rng)
+function generate_so(p::Union{ML_Red_Team_Problem, ML_Blue_Team_Problem}, s::Tuple{Int64,Int64},
+                        a::Tuple{Int64,Int64}, rng::AbstractRNG, frame_j::Nullable = Nullable())
+    sp = generate_s(p, s, a, rng, frame_j)
+    o = generate_o(p, s, a, sp, rng, frame_j)
     return sp,o
 end

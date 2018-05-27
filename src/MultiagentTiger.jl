@@ -66,7 +66,7 @@ end
     rand(rng, initial_state_distribution(p))
 end=#
 
-function generate_s(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng::AbstractRNG)
+function generate_s(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1
@@ -83,7 +83,8 @@ function generate_s(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng:
     end
     return sp
 end
-function generate_o(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, sp::Int64, rng::AbstractRNG)
+function generate_o(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, sp::Int64,
+                        rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1
@@ -129,7 +130,8 @@ function generate_o(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, sp::
     return o
 end
 
-function generate_sor(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng::AbstractRNG)
+function generate_sor(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64},
+                        rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1
@@ -204,12 +206,14 @@ function generate_sor(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rn
     end
     return sp,o,r
 end
-function generate_so(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng::AbstractRNG)
-    sp = generate_s(p, s, a, rng)
-    o = generate_o(p, s, a, sp, rng)
+function generate_so(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64},
+                        rng::AbstractRNG, frame_j::Nullable = Nullable())
+    sp = generate_s(p, s, a, rng, frame_j)
+    o = generate_o(p, s, a, sp, rng, frame_j)
     return sp,o
 end
-function reward(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng::AbstractRNG)
+function reward(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64},
+                rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1
@@ -237,20 +241,23 @@ function reward(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng::Abs
     return r
 end
 
-function generate_sr(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, rng::AbstractRNG)
-    sp = generate_s(p, s, a, rng)
-    r = reward(p,s,a,rng)
+function generate_sr(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64},
+                        rng::AbstractRNG, frame_j::Nullable = Nullable())
+    sp = generate_s(p, s, a, rng, frame_j)
+    r = reward(p,s,a,rng, frame_j)
     return sp,r
 end
 
-function generate_or(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, sp::Int64, rng::AbstractRNG)
-    o = generate_o(p,s,a,sp,rng)
-    r = reward(p,s,a,rng)
+function generate_or(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64},
+                        sp::Int64, rng::AbstractRNG, frame_j::Nullable = Nullable())
+    o = generate_o(p,s,a,sp,rng, frame_j)
+    r = reward(p,s,a,rng, frame_j)
 
     return o,r
 end
 
-function obs_weight(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, sp::Int64, o::Tuple{Int64, Int64}, rng::AbstractRNG)
+function obs_weight(p::Level_l_tigerPOMDP, s::Int64, a::Tuple{Int64,Int64}, sp::Int64,
+                    o::Tuple{Int64, Int64}, rng::AbstractRNG, frame_j::Nullable = Nullable())
     agID = p.agID
     oaID=1
     if agID == 1

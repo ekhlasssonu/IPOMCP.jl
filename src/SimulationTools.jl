@@ -82,8 +82,8 @@ function simulate(sim::HistoryRecorder, ipomdp_i::IPOMDP_2, policy_i::Policy, bu
             push!(a_ih, a_i)
             push!(a_jh, a_j)
 
-            sp,o_i,r_i = generate_sor(ipomdp_i, sh[step], a_ih[step], a_jh[step], rng)
-            o_j,r_j = generate_or(ipomdp_j,sh[step],a_jh[step],a_ih[step],sp,rng)
+            sp,o_i,r_i = generate_sor(ipomdp_i, sh[step], a_ih[step], a_jh[step], ipomdp_j, rng)
+            o_j,r_j = generate_or(ipomdp_j, sh[step], a_jh[step], a_ih[step], sp, ipomdp_i, rng)
 
             #println("r_i = ",r_i," r_j = ",r_j)
 

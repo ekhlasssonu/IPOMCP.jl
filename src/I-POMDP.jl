@@ -96,7 +96,32 @@ function observations(ipomdp::IPOMDP_2)
     return observations(ipomdp.thisPOMDP)
 end
 
-function generate_s{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, rng::AbstractRNG=Base.GLOBAL_RNG)
+function generate_s{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, frame_j::Frame,
+                    rng::AbstractRNG=Base.GLOBAL_RNG)
+    if agentID(ipomdp) == 1
+        a1 = a
+        a2 = oa
+    else
+        a1 = oa
+        a2 = a
+    end
+    return generate_s(ipomdp.thisPOMDP, s, (a1,a2), rng, Nullable(frame_j))
+end
+
+function generate_o{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, sp::S, frame_j::Frame,
+                    rng::AbstractRNG=Base.GLOBAL_RNG)
+    if agentID(ipomdp) == 1
+        a1 = a
+        a2 = oa
+    else
+        a1 = oa
+        a2 = a
+    end
+    generate_o(ipomdp.thisPOMDP, s, (a1,a2), sp, rng, Nullable(frame_j))
+end
+
+function reward{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, frame_j::Frame,
+                    rng::AbstractRNG=Base.GLOBAL_RNG)
     if agentID(ipomdp) == 1
         a1 = a
         a2 = oa
@@ -105,34 +130,11 @@ function generate_s{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, rng::Abstrac
         a2 = a
     end
 
-    return generate_s(ipomdp.thisPOMDP, s, (a1,a2), rng)
+    return reward(ipomdp.thisPOMDP, s, (a1,a2), rng, Nullable(frame_j))
 end
 
-function generate_o{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, sp::S, rng::AbstractRNG=Base.GLOBAL_RNG)
-    if agentID(ipomdp) == 1
-        a1 = a
-        a2 = oa
-    else
-        a1 = oa
-        a2 = a
-    end
-
-    return generate_o(ipomdp.thisPOMDP, s, (a1,a2), sp, rng)
-end
-
-function reward{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, rng::AbstractRNG=Base.GLOBAL_RNG)
-    if agentID(ipomdp) == 1
-        a1 = a
-        a2 = oa
-    else
-        a1 = oa
-        a2 = a
-    end
-
-    return reward(ipomdp.thisPOMDP, s, (a1,a2), rng)
-end
-
-function generate_sor{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, rng::AbstractRNG=Base.GLOBAL_RNG)
+function generate_sor{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, frame_j::Frame,
+                    rng::AbstractRNG=Base.GLOBAL_RNG)
     if agentID(ipomdp) == 1
         a1 = a
         a2 = oa
@@ -141,10 +143,11 @@ function generate_sor{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, rng::Abstr
         a2 = a
     end
     #println("a1 = $a1, a2 = $a2")
-    return generate_sor(ipomdp.thisPOMDP, s, (a1,a2), rng)
+    return generate_sor(ipomdp.thisPOMDP, s, (a1,a2), rng, Nullable(frame_j))
 end
 
-function generate_sr{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, rng::AbstractRNG=Base.GLOBAL_RNG)
+function generate_sr{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, frame_j::Frame,
+                    rng::AbstractRNG=Base.GLOBAL_RNG)
     if agentID(ipomdp) == 1
         a1 = a
         a2 = oa
@@ -153,10 +156,11 @@ function generate_sr{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, rng::Abstra
         a2 = a
     end
 
-    return generate_sr(ipomdp.thisPOMDP, s, (a1,a2), rng)
+    return generate_sr(ipomdp.thisPOMDP, s, (a1,a2), rng, Nullable(frame_j))
 end
 
-function generate_so{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, rng::AbstractRNG=Base.GLOBAL_RNG)
+function generate_so{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, frame_j::Frame,
+                    rng::AbstractRNG=Base.GLOBAL_RNG)
     if agentID(ipomdp) == 1
         a1 = a
         a2 = oa
@@ -165,10 +169,11 @@ function generate_so{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, rng::Abstra
         a2 = a
     end
 
-    return generate_so(ipomdp.thisPOMDP, s, (a1,a2), rng)
+    return generate_so(ipomdp.thisPOMDP, s, (a1,a2), rng, Nullable(frame_j))
 end
 
-function generate_or{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, sp::S, rng::AbstractRNG=Base.GLOBAL_RNG)
+function generate_or{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, sp::S, frame_j::Frame,
+                    rng::AbstractRNG=Base.GLOBAL_RNG)
     if agentID(ipomdp) == 1
         a1 = a
         a2 = oa
@@ -177,10 +182,11 @@ function generate_or{S,A1,A2}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, sp::S, rng:
         a2 = a
     end
 
-    return generate_or(ipomdp.thisPOMDP, s, (a1,a2), sp, rng)
+    return generate_or(ipomdp.thisPOMDP, s, (a1,a2), sp, rng, Nullable(frame_j))
 end
 
-function obs_weight{S,A1,A2,O}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, sp::S, o::O, rng::AbstractRNG=Base.GLOBAL_RNG)
+function obs_weight{S,A1,A2,O}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, sp::S, o::O, frame_j::Frame,
+                    rng::AbstractRNG=Base.GLOBAL_RNG)
     if agentID(ipomdp) == 1
         a1 = a
         a2 = oa
@@ -188,7 +194,7 @@ function obs_weight{S,A1,A2,O}(ipomdp::IPOMDP_2, s::S, a::A1, oa::A2, sp::S, o::
         a1 = oa
         a2 = a
     end
-    return obs_weight(ipomdp.thisPOMDP, s, (a1,a2), sp, o, rng)
+    return obs_weight(ipomdp.thisPOMDP, s, (a1,a2), sp, o, rng, Nullable(frame_j))
 end
 
 function initial_state_distribution(ipomdp::IPOMDP_2)

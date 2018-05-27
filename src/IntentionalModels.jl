@@ -15,7 +15,7 @@ function print(model::Intentional_Model, numTabs::Int64=0)
     end
 end
 
-function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, aj::OA, sp::S,
+function update_model{S,A,OA}(i_frame::Frame, m_j::Intentional_Model, s::S, a::A, aj::OA, sp::S,
                                 rng::AbstractRNG, solver::AbstractIPOMDPSolver)
     frame = m_j.frame
     belief = m_j.belief
@@ -37,7 +37,7 @@ function update_model{S,A,OA}(m_j::Intentional_Model, s::S, a::A, aj::OA, sp::S,
 
     for oj in oj_set
         #order of actions reversed because frame is ipomdp for the other agent,
-        p_oj = obs_weight(frame, s, aj, a, sp, oj, rng) #NOTE: first s is a dummy
+        p_oj = obs_weight(frame, s, aj, a, sp, oj, i_frame, rng) #NOTE: first s is a dummy
         if p_oj < 1e-5
             continue
         end
